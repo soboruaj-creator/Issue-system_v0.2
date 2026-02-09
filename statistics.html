@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>통계 분석 - VOC 관리 시스템</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <!-- jQuery (Select2 dependency) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -241,20 +247,228 @@
         
         /* 모델 선택 드롭박스 너비 수정 */
         #modelSelect {
-            min-width: 300px;
-            max-width: 500px;
-            padding: 8px 12px;
+            width: 100%;
+        }
+        
+        /* Select2 커스터마이징 */
+        .select2-container {
+            min-width: 400px;
+            max-width: 600px;
+        }
+        
+        .select2-container--default .select2-selection--multiple {
             border: 1px solid #ddd;
             border-radius: 5px;
-            font-size: 14px;
+            min-height: 150px;
+            padding: 5px;
+        }
+        
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background-color: #667eea;
+            border: 1px solid #5568d3;
+            color: white;
+            padding: 5px 10px;
+            margin: 3px;
+            border-radius: 4px;
+        }
+        
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: white;
+            margin-right: 5px;
+        }
+        
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+            color: #ffcccc;
+        }
+        
+        .select2-container--default .select2-search--inline .select2-search__field {
+            margin-top: 5px;
+            padding: 5px;
+        }
+        
+        .select2-results__option {
+            padding: 8px 12px;
+        }
+        
+        .select2-results__option--highlighted {
+            background-color: #667eea !important;
         }
         
         .model-trend-controls {
             display: flex;
             gap: 15px;
-            align-items: center;
+            align-items: flex-start;
             margin-bottom: 20px;
             flex-wrap: wrap;
+        }
+        
+        .model-select-wrapper {
+            flex: 1;
+            min-width: 400px;
+        }
+        
+        .model-select-wrapper label {
+            display: block;
+            margin-bottom: 8px;
+            color: #666;
+            font-weight: 600;
+        }
+        
+        .model-select-info {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+        
+        /* 메모 관련 스타일 */
+        .memo-input-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .memo-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .memo-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .memo-month {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 16px;
+        }
+        
+        .memo-date {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .memo-content {
+            color: #333;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        
+        .memo-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-small {
+            padding: 5px 12px;
+            font-size: 12px;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: #138496;
+        }
+        
+        /* 메모 팝업 스타일 */
+        .memo-popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .memo-popup.active {
+            display: flex;
+        }
+        
+        .memo-popup-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .memo-popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .memo-popup-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .memo-popup-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+        
+        .memo-popup-close:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .memo-popup-body {
+            color: #333;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            font-size: 15px;
+        }
+        
+        .memo-popup-date {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            color: #999;
+            font-size: 13px;
         }
         
         .total-count {
@@ -335,11 +549,16 @@
             <div class="chart-section">
                 <h3>📊 모델별 월별 추이</h3>
                 <div class="model-trend-controls">
-                    <label>모델 선택 (최대 10개):</label>
-                    <select id="modelSelect" multiple size="10">
-                        <!-- 동적으로 로드 -->
-                    </select>
-                    <button class="btn btn-primary" onclick="loadModelTrend()">조회</button>
+                    <div class="model-select-wrapper">
+                        <label>모델 선택 (최대 10개):</label>
+                        <select id="modelSelect" multiple="multiple">
+                            <!-- 동적으로 로드 -->
+                        </select>
+                        <div class="model-select-info">
+                            💡 검색창에 모델명을 입력하거나 목록에서 선택하세요. 건수가 많은 순으로 정렬됩니다.
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="loadModelTrend()" style="margin-top: 28px;">조회</button>
                 </div>
                 <div class="chart-container">
                     <canvas id="modelTrendChart"></canvas>
@@ -364,6 +583,46 @@
                 <div class="chart-container">
                     <canvas id="monthlyChart"></canvas>
                 </div>
+                <div style="margin-top: 15px; color: #666; font-size: 14px;">
+                    💡 <strong>📌 아이콘</strong>이 표시된 월은 메모가 있습니다. 포인트에 마우스를 올리면 메모 미리보기를 볼 수 있고, 클릭하면 전체 메모를 확인할 수 있습니다.
+                </div>
+            </div>
+            
+            <!-- 월별 메모 섹션 -->
+            <div class="chart-section">
+                <h3>📝 월별 메모</h3>
+                <div class="memo-input-section">
+                    <div class="filter-group">
+                        <label>월 선택:</label>
+                        <input type="month" id="memoMonth" placeholder="YYYY-MM">
+                        <button class="btn btn-primary" onclick="loadMemoForMonth()">메모 조회</button>
+                        <button class="btn btn-success" onclick="saveMemo()">메모 저장</button>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <textarea id="memoText" 
+                                  placeholder="해당 월에 대한 메모를 입력하세요..." 
+                                  style="width: 100%; min-height: 120px; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; font-family: inherit;"></textarea>
+                    </div>
+                    <div id="memoStatus" style="margin-top: 10px; color: #666; font-size: 14px;"></div>
+                </div>
+                
+                <!-- 기존 메모 목록 -->
+                <div id="memoListSection" style="margin-top: 30px;">
+                    <h4 style="color: #333; margin-bottom: 15px;">저장된 메모 목록</h4>
+                    <div id="memoList"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 메모 팝업 -->
+        <div id="memoPopup" class="memo-popup" onclick="closeMemoPopup(event)">
+            <div class="memo-popup-content" onclick="event.stopPropagation()">
+                <div class="memo-popup-header">
+                    <div class="memo-popup-title" id="memoPopupTitle">📅 메모</div>
+                    <button class="memo-popup-close" onclick="closeMemoPopup()">&times;</button>
+                </div>
+                <div class="memo-popup-body" id="memoPopupBody"></div>
+                <div class="memo-popup-date" id="memoPopupDate"></div>
             </div>
         </div>
         
@@ -627,20 +886,40 @@
             const select = document.getElementById('modelSelect');
             select.innerHTML = '';
             
+            // 건수가 많은 순으로 정렬 (이미 API에서 정렬되어 옴)
             data.forEach(item => {
                 const option = document.createElement('option');
                 option.value = item.model_name;
-                option.textContent = `${item.model_name} (${item.count}건)`;
+                option.textContent = `${item.model_name} (${item.count.toLocaleString()}건)`;
                 select.appendChild(option);
+            });
+            
+            // Select2 초기화
+            $('#modelSelect').select2({
+                placeholder: '모델을 검색하거나 선택하세요...',
+                allowClear: true,
+                maximumSelectionLength: 10,
+                width: '100%',
+                language: {
+                    maximumSelected: function (e) {
+                        return "최대 " + e.maximum + "개까지만 선택 가능합니다.";
+                    },
+                    noResults: function() {
+                        return "검색 결과가 없습니다.";
+                    },
+                    searching: function() {
+                        return "검색 중...";
+                    }
+                }
             });
         }
         
         // 모델별 추이 로드
         async function loadModelTrend() {
-            const select = document.getElementById('modelSelect');
-            const selectedModels = Array.from(select.selectedOptions).map(opt => opt.value);
+            // Select2에서 선택된 값 가져오기
+            const selectedModels = $('#modelSelect').val();
             
-            if (selectedModels.length === 0) {
+            if (!selectedModels || selectedModels.length === 0) {
                 alert('모델을 선택해주세요.');
                 return;
             }
@@ -769,10 +1048,15 @@
         }
         
         // 월별 통계
+        let monthlyMemos = {}; // 메모 데이터 저장
+        
         async function loadMonthlyStatistics() {
             const queryString = getQueryString();
             const response = await fetch('/api/statistics/monthly' + queryString);
             const data = await response.json();
+            
+            // 메모 데이터 먼저 로드
+            await loadMonthlyMemosForChart();
             
             const ctx = document.getElementById('monthlyChart');
             if (charts.monthly) charts.monthly.destroy();
@@ -788,7 +1072,24 @@
                         borderColor: 'rgba(118, 75, 162, 1)',
                         borderWidth: 2,
                         tension: 0.4,
-                        fill: true
+                        fill: true,
+                        // 메모 있는 포인트 스타일 커스터마이징
+                        pointStyle: data.map(item => 
+                            monthlyMemos[item.month] ? 'rectRot' : 'circle'
+                        ),
+                        pointRadius: data.map(item => 
+                            monthlyMemos[item.month] ? 8 : 4
+                        ),
+                        pointHoverRadius: data.map(item => 
+                            monthlyMemos[item.month] ? 12 : 6
+                        ),
+                        pointBackgroundColor: data.map(item => 
+                            monthlyMemos[item.month] ? '#ff6b6b' : 'rgba(118, 75, 162, 1)'
+                        ),
+                        pointBorderColor: data.map(item => 
+                            monthlyMemos[item.month] ? '#ff6b6b' : 'rgba(118, 75, 162, 1)'
+                        ),
+                        pointBorderWidth: 2
                     }]
                 },
                 options: {
@@ -797,6 +1098,21 @@
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const month = data[context.dataIndex].month;
+                                    const memo = monthlyMemos[month];
+                                    if (memo) {
+                                        const preview = memo.memo.length > 50 
+                                            ? memo.memo.substring(0, 50) + '...' 
+                                            : memo.memo;
+                                        return '\n📝 메모: ' + preview + '\n(클릭하여 전체 보기)';
+                                    }
+                                    return '';
+                                }
+                            }
                         }
                     },
                     scales: {
@@ -808,11 +1124,220 @@
                         if (elements.length > 0) {
                             const index = elements[0].index;
                             const month = data[index].month;
-                            window.location.href = `/voc/monthly/${month}`;
+                            const memo = monthlyMemos[month];
+                            
+                            if (memo) {
+                                // 메모가 있으면 팝업 표시
+                                showMemoPopup(month, memo.memo, memo.updated_date);
+                            } else {
+                                // 메모가 없으면 월별 상세 페이지로
+                                window.location.href = `/voc/monthly/${month}`;
+                            }
                         }
                     }
                 }
             });
+            
+            // 메모 목록 로드
+            await loadAllMemos();
+        }
+        
+        // 차트용 메모 데이터 로드
+        async function loadMonthlyMemosForChart() {
+            try {
+                const response = await fetch('/api/monthly-memos');
+                const result = await response.json();
+                
+                monthlyMemos = {};
+                if (result.success) {
+                    result.memos.forEach(memo => {
+                        monthlyMemos[memo.month] = memo;
+                    });
+                }
+            } catch (error) {
+                console.error('메모 데이터 로드 실패:', error);
+            }
+        }
+        
+        // 메모 팝업 표시
+        function showMemoPopup(month, memo, updatedDate) {
+            document.getElementById('memoPopupTitle').textContent = `📅 ${month} 메모`;
+            document.getElementById('memoPopupBody').textContent = memo;
+            document.getElementById('memoPopupDate').textContent = 
+                `최종 수정: ${updatedDate}`;
+            document.getElementById('memoPopup').classList.add('active');
+        }
+        
+        // 메모 팝업 닫기
+        function closeMemoPopup(event) {
+            if (!event || event.target.id === 'memoPopup') {
+                document.getElementById('memoPopup').classList.remove('active');
+            }
+        }
+        
+        // 특정 월의 메모 조회
+        async function loadMemoForMonth() {
+            const month = document.getElementById('memoMonth').value;
+            if (!month) {
+                alert('월을 선택해주세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/monthly-memos');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const memo = result.memos.find(m => m.month === month);
+                    if (memo) {
+                        document.getElementById('memoText').value = memo.memo;
+                        document.getElementById('memoStatus').textContent = 
+                            `📅 ${month} 메모 (최종 수정: ${memo.updated_date})`;
+                    } else {
+                        document.getElementById('memoText').value = '';
+                        document.getElementById('memoStatus').textContent = 
+                            `📅 ${month} - 저장된 메모가 없습니다.`;
+                    }
+                }
+            } catch (error) {
+                console.error('메모 조회 실패:', error);
+                alert('메모 조회에 실패했습니다.');
+            }
+        }
+        
+        // 메모 저장
+        async function saveMemo() {
+            const month = document.getElementById('memoMonth').value;
+            const memo = document.getElementById('memoText').value.trim();
+            
+            if (!month) {
+                alert('월을 선택해주세요.');
+                return;
+            }
+            
+            if (!memo) {
+                alert('메모 내용을 입력해주세요.');
+                return;
+            }
+            
+            try {
+                // 기존 메모 확인
+                const checkResponse = await fetch('/api/monthly-memos');
+                const checkResult = await checkResponse.json();
+                const existingMemo = checkResult.success ? 
+                    checkResult.memos.find(m => m.month === month) : null;
+                
+                let response;
+                if (existingMemo) {
+                    // 수정
+                    response = await fetch(`/api/monthly-memos/${month}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ memo: memo })
+                    });
+                } else {
+                    // 추가
+                    response = await fetch('/api/monthly-memos', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ month: month, memo: memo })
+                    });
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    document.getElementById('memoStatus').textContent = '✅ 메모가 저장되었습니다.';
+                    
+                    // 차트 다시 로드 (메모 아이콘 표시 업데이트)
+                    await loadMonthlyStatistics();
+                } else {
+                    alert('메모 저장 실패: ' + result.error);
+                }
+            } catch (error) {
+                console.error('메모 저장 실패:', error);
+                alert('메모 저장에 실패했습니다.');
+            }
+        }
+        
+        // 모든 메모 목록 조회
+        async function loadAllMemos() {
+            try {
+                const response = await fetch('/api/monthly-memos');
+                const result = await response.json();
+                
+                const memoList = document.getElementById('memoList');
+                
+                if (result.success && result.memos.length > 0) {
+                    memoList.innerHTML = result.memos.map(memo => `
+                        <div class="memo-item">
+                            <div class="memo-item-header">
+                                <span class="memo-month">📅 ${memo.month}</span>
+                                <span class="memo-date">최종 수정: ${memo.updated_date}</span>
+                            </div>
+                            <div class="memo-content">${memo.memo}</div>
+                            <div class="memo-actions">
+                                <button class="btn btn-info btn-small" onclick="editMemo('${memo.month}', \`${memo.memo.replace(/`/g, '\\`')}\`)">
+                                    ✏️ 수정
+                                </button>
+                                <button class="btn btn-danger btn-small" onclick="deleteMemo('${memo.month}')">
+                                    🗑️ 삭제
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    memoList.innerHTML = '<div class="no-data">저장된 메모가 없습니다.</div>';
+                }
+            } catch (error) {
+                console.error('메모 목록 조회 실패:', error);
+            }
+        }
+        
+        // 메모 수정 (폼에 로드)
+        function editMemo(month, memo) {
+            document.getElementById('memoMonth').value = month;
+            document.getElementById('memoText').value = memo;
+            document.getElementById('memoStatus').textContent = `📝 ${month} 메모 수정 중...`;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // 메모 삭제
+        async function deleteMemo(month) {
+            if (!confirm(`${month} 메모를 삭제하시겠습니까?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/monthly-memos/${month}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    
+                    // 현재 선택된 월과 같으면 폼 초기화
+                    if (document.getElementById('memoMonth').value === month) {
+                        document.getElementById('memoText').value = '';
+                        document.getElementById('memoStatus').textContent = '';
+                    }
+                    
+                    // 차트 다시 로드 (메모 아이콘 제거)
+                    await loadMonthlyStatistics();
+                } else {
+                    alert('메모 삭제 실패: ' + result.error);
+                }
+            } catch (error) {
+                console.error('메모 삭제 실패:', error);
+                alert('메모 삭제에 실패했습니다.');
+            }
         }
         
         // 칩셋별 통계
