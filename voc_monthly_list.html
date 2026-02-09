@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ month }} VOC 목록 - VOC 관리 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .nav {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        .nav a:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .page-header {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-header h2 {
+            color: #333;
+            font-size: 24px;
+        }
+        
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .stats-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+        
+        .stats-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        
+        th {
+            background: #f8f9fa;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        /* 모델별 통계 테이블 열 너비 설정 */
+        .stats-section table th:nth-child(1), 
+        .stats-section table td:nth-child(1) {
+            width: 180px; /* 순위 */
+            white-space: normal;
+        }
+
+        .stats-section table th:nth-child(2), 
+        .stats-section table td:nth-child(2) {
+            width: 200px; /* 모델명 */
+        }
+
+        .stats-section table th:nth-child(3), 
+        .stats-section table td:nth-child(3) {
+            width: 150px; /* VOC 건수 */
+        }
+
+        .stats-section table th:nth-child(4), 
+        .stats-section table td:nth-child(4) {
+            width: 180px; /* 모델별 비율 */
+            white-space: nowrap;
+        }
+
+        .stats-section table th:nth-child(5), 
+        .stats-section table td:nth-child(5) {
+            width: 180px; /* 전달대비 증가율 */
+            white-space: nowrap;
+        }
+        
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        .badge-gold {
+            background: #ffd700;
+            color: #333;
+        }
+        
+        .badge-silver {
+            background: #c0c0c0;
+            color: #333;
+        }
+        
+        .badge-bronze {
+            background: #cd7f32;
+            color: white;
+        }
+        
+        .badge-consecutive {
+            background: #ff6b6b;
+            color: white;
+        }
+        
+        .growth-positive {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .growth-negative {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .growth-neutral {
+            color: #6c757d;
+            font-weight: 600;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 VOC 통합 관리 시스템</h1>
+        <div class="nav">
+            <a href="http://127.0.0.1:5000/">대시보드</a>
+            <a href="http://127.0.0.1:5000/upload">파일 업로드</a>
+            <a href="http://127.0.0.1:5000/statistics">통계 분석</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="page-header">
+            <h2>📅 {{ month }} VOC 목록</h2>
+            <a href="/api/voc/monthly/{{ month }}/export" class="btn btn-success">
+                📊 엑셀 다운로드
+            </a>
+        </div>
+        
+        <div class="stats-section">
+            <h3>📊 모델별 통계</h3>
+            {% if model_stats %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>순위</th>
+                        <th>모델명</th>
+                        <th>VOC 건수</th>
+                        <th>모델별 비율</th>
+                        <th>전달대비 증가율</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in model_stats %}
+                    <tr>
+                        <td>
+                            {% if loop.index == 1 %}
+                            <span class="badge badge-gold">🥇 1위</span>
+                            {% elif loop.index == 2 %}
+                            <span class="badge badge-silver">🥈 2위</span>
+                            {% elif loop.index == 3 %}
+                            <span class="badge badge-bronze">🥉 3위</span>
+                            {% else %}
+                            <span class="badge">{{ loop.index }}위</span>
+                            {% endif %}
+                            {% if stat.model_name in consecutive_models %}
+                            <span class="badge badge-consecutive">🔥 3달 연속 상위 5</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ stat.model_name }}</strong></td>
+                        <td style="color: #667eea; font-weight: 600;">{{ stat.count }}건</td>
+                        <td style="color: #764ba2; font-weight: 600;">{{ stat.percentage }}%</td>
+                        <td>
+                            {% if stat.growth_rate is not none %}
+                                {% if stat.growth_rate > 0 %}
+                                <span class="growth-positive">+{{ stat.growth_rate }}%</span>
+                                {% elif stat.growth_rate < 0 %}
+                                <span class="growth-negative">{{ stat.growth_rate }}%</span>
+                                {% else %}
+                                <span class="growth-neutral">0%</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="growth-neutral">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-data">
+                <p>데이터가 없습니다.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
