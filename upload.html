@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>파일 업로드 - VOC 관리 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .nav {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        .nav a:hover, .nav a.active {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .upload-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        
+        .upload-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .upload-form {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .file-input {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        input[type="file"] {
+            padding: 10px;
+            border: 2px dashed #ddd;
+            border-radius: 5px;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        input[type="file"]:hover {
+            border-color: #667eea;
+        }
+        
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .upload-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .upload-info ul {
+            margin-top: 10px;
+            margin-left: 20px;
+        }
+        
+        .upload-info li {
+            margin: 5px 0;
+        }
+        
+        .status-message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 5px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .upload-history {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #999;
+        }
+        
+        .badge-new {
+            background: #ff6b6b;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 VOC 통합 관리 시스템</h1>
+        <div class="nav">
+            <a href="/">대시보드</a>
+            <a href="/upload" class="active">파일 업로드</a>
+            <a href="/statistics">통계 분석</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- 1. 칩셋 매핑 파일 -->
+        <div class="upload-section">
+            <h3>📋 1. 칩셋 매핑 파일 업로드</h3>
+            <div class="upload-form">
+                <div class="file-input">
+                    <input type="file" id="chipsetFile" accept=".xlsx,.xls">
+                </div>
+                <button class="btn btn-primary" onclick="uploadChipset()">업로드</button>
+            </div>
+            <div id="chipsetStatus" class="status-message"></div>
+            <div class="upload-info">
+                💡 칩셋 매핑 파일: 모델명과 칩셋 정보를 매핑하는 파일
+            </div>
+        </div>
+        
+        <!-- 2. 앱 키워드 파일 -->
+        <div class="upload-section">
+            <h3>📱 2. 앱 키워드 파일 업로드</h3>
+            <div class="upload-form">
+                <div class="file-input">
+                    <input type="file" id="appFile" accept=".xlsx,.xls">
+                </div>
+                <button class="btn btn-primary" onclick="uploadApp()">업로드</button>
+            </div>
+            <div id="appStatus" class="status-message"></div>
+            <div class="upload-info">
+                💡 앱 키워드 파일: 3rd Party 앱 감지를 위한 키워드 목록
+            </div>
+        </div>
+        
+        <!-- 3. 사내 VOC 파일 -->
+        <div class="upload-section">
+            <h3>📊 3. 사내 VOC 파일 업로드</h3>
+            <div class="upload-form">
+                <div class="file-input">
+                    <input type="file" id="vocFile" accept=".xlsx,.xls">
+                </div>
+                <button class="btn btn-primary" onclick="uploadVOC()">업로드</button>
+            </div>
+            <div id="vocStatus" class="status-message"></div>
+            <div class="upload-info">
+                💡 사내 VOC 파일: A, H, M, N, O, R, U, V 열 필수
+            </div>
+        </div>
+        
+        <!-- 4. Q-data 파일 (NEW) -->
+        <div class="upload-section" style="border: 2px solid #ff6b6b;">
+            <h3>🔧 4. Q-data 파일 업로드<span class="badge-new">NEW</span></h3>
+            <div class="upload-form">
+                <div class="file-input">
+                    <input type="file" id="qdataFile" accept=".xlsx,.xls">
+                </div>
+                <button class="btn btn-primary" onclick="uploadQData()">업로드</button>
+            </div>
+            <div id="qdataStatus" class="status-message"></div>
+            <div class="upload-info">
+                <strong>⚠️ 주의사항:</strong>
+                <ul>
+                    <li>9행부터 데이터가 시작되어야 합니다</li>
+                    <li>DRM이 걸린 파일도 지원됩니다</li>
+                    <li>필수 컬럼: F(서비스일자), M(처리유형), P(수리명), Z(모델명), AD(S/N), AR(LOG ID)</li>
+                    <li>서비스일자 형식: YYMMDD (예: 260209)</li>
+                    <li>중복 데이터(동일 S/N + LOG ID)는 자동으로 제외됩니다</li>
+                </ul>
+            </div>
+            <div class="upload-history" id="qdataHistory"></div>
+        </div>
+    </div>
+    
+    <script>
+        // 칩셋 매핑 파일 업로드
+        async function uploadChipset() {
+            const fileInput = document.getElementById('chipsetFile');
+            const statusDiv = document.getElementById('chipsetStatus');
+            
+            if (!fileInput.files.length) {
+                showStatus(statusDiv, 'error', '파일을 선택해주세요.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            showStatus(statusDiv, 'info', '업로드 중...');
+            
+            try {
+                const response = await fetch('/api/upload/chipset', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus(statusDiv, 'success', result.message);
+                    fileInput.value = '';
+                } else {
+                    showStatus(statusDiv, 'error', result.error);
+                }
+            } catch (error) {
+                showStatus(statusDiv, 'error', '업로드 실패: ' + error.message);
+            }
+        }
+        
+        // 앱 키워드 파일 업로드
+        async function uploadApp() {
+            const fileInput = document.getElementById('appFile');
+            const statusDiv = document.getElementById('appStatus');
+            
+            if (!fileInput.files.length) {
+                showStatus(statusDiv, 'error', '파일을 선택해주세요.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            showStatus(statusDiv, 'info', '업로드 중...');
+            
+            try {
+                const response = await fetch('/api/upload/app', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus(statusDiv, 'success', result.message);
+                    fileInput.value = '';
+                } else {
+                    showStatus(statusDiv, 'error', result.error);
+                }
+            } catch (error) {
+                showStatus(statusDiv, 'error', '업로드 실패: ' + error.message);
+            }
+        }
+        
+        // VOC 파일 업로드
+        async function uploadVOC() {
+            const fileInput = document.getElementById('vocFile');
+            const statusDiv = document.getElementById('vocStatus');
+            
+            if (!fileInput.files.length) {
+                showStatus(statusDiv, 'error', '파일을 선택해주세요.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            showStatus(statusDiv, 'info', '업로드 중... (DRM 파일 처리 중)');
+            
+            try {
+                const response = await fetch('/api/upload/voc', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus(statusDiv, 'success', result.message);
+                    fileInput.value = '';
+                } else {
+                    showStatus(statusDiv, 'error', result.error);
+                }
+            } catch (error) {
+                showStatus(statusDiv, 'error', '업로드 실패: ' + error.message);
+            }
+        }
+        
+        // Q-data 파일 업로드 (NEW)
+        async function uploadQData() {
+            const fileInput = document.getElementById('qdataFile');
+            const statusDiv = document.getElementById('qdataStatus');
+            const historyDiv = document.getElementById('qdataHistory');
+            
+            if (!fileInput.files.length) {
+                showStatus(statusDiv, 'error', '파일을 선택해주세요.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            showStatus(statusDiv, 'info', '업로드 중... (DRM 파일 처리 중, 최대 8가지 방법 시도)');
+            
+            try {
+                const response = await fetch('/api/upload/qdata', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus(statusDiv, 'success', 
+                        `✅ ${result.message}\n` +
+                        `📊 저장: ${result.inserted}건 | 중복 제외: ${result.duplicates}건`
+                    );
+                    fileInput.value = '';
+                    
+                    // 업로드 이력 표시
+                    const now = new Date().toLocaleString('ko-KR');
+                    historyDiv.textContent = `마지막 업로드: ${now} (${result.inserted}건)`;
+                } else {
+                    showStatus(statusDiv, 'error', '❌ ' + result.error);
+                }
+            } catch (error) {
+                showStatus(statusDiv, 'error', '업로드 실패: ' + error.message);
+            }
+        }
+        
+        // 상태 메시지 표시
+        function showStatus(element, type, message) {
+            element.className = 'status-message status-' + type;
+            element.textContent = message;
+            element.style.display = 'block';
+            
+            // 성공 메시지는 5초 후 자동 숨김
+            if (type === 'success') {
+                setTimeout(() => {
+                    element.style.display = 'none';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>
