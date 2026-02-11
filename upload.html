@@ -48,7 +48,7 @@
         }
         
         .container {
-            max-width: 900px;
+            max-width: 1200px;
             margin: 30px auto;
             padding: 0 20px;
         }
@@ -58,51 +58,111 @@
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
         
-        .upload-section h3 {
+        /* Q-data 섹션 강조 */
+        .upload-section.qdata-section {
+            border: 2px solid #ff6b6b;
+            background: #fff5f5;
+        }
+        
+        .badge-new {
+            background: #ff6b6b;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .upload-section h2 {
             color: #333;
+            margin-bottom: 10px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .upload-section p {
+            color: #666;
             margin-bottom: 20px;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            line-height: 1.6;
         }
         
-        .upload-form {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
+        .upload-box {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
         }
         
-        .file-input {
-            flex: 1;
-            min-width: 200px;
+        .upload-box:hover {
+            background: #f0f2ff;
+            border-color: #5568d3;
+        }
+        
+        .upload-box.dragging {
+            background: #e8ebff;
+            border-color: #5568d3;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .file-info {
+            color: #999;
+            font-size: 14px;
         }
         
         input[type="file"] {
-            padding: 10px;
-            border: 2px dashed #ddd;
-            border-radius: 5px;
-            width: 100%;
-            cursor: pointer;
-            transition: all 0.3s;
+            display: none;
         }
         
-        input[type="file"]:hover {
-            border-color: #667eea;
+        .selected-file {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .selected-file.show {
+            display: block;
+        }
+        
+        .selected-file-name {
+            color: #2e7d32;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .selected-file-size {
+            color: #666;
+            font-size: 14px;
         }
         
         .btn {
-            padding: 10px 25px;
+            padding: 12px 30px;
             border: none;
             border-radius: 5px;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
+            margin-top: 15px;
         }
         
         .btn-primary {
@@ -119,64 +179,249 @@
             cursor: not-allowed;
         }
         
-        .upload-info {
-            margin-top: 15px;
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            margin-left: 10px;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .message {
             padding: 15px;
-            background: #f8f9fa;
             border-radius: 5px;
-            font-size: 13px;
-            color: #666;
-        }
-        
-        .upload-info ul {
-            margin-top: 10px;
-            margin-left: 20px;
-        }
-        
-        .upload-info li {
-            margin: 5px 0;
-        }
-        
-        .status-message {
             margin-top: 15px;
-            padding: 12px;
-            border-radius: 5px;
-            font-size: 14px;
             display: none;
         }
         
-        .status-success {
+        .message.show {
+            display: block;
+        }
+        
+        .message.success {
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
         
-        .status-error {
+        .message.error {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
         
-        .status-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .progress-bar.show {
+            display: block;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .info-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        
+        .info-box h4 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .info-box ul {
+            color: #856404;
+            padding-left: 20px;
+            line-height: 1.8;
+        }
+        
+        .info-box strong {
+            color: #721c24;
+        }
+        
+        .example-table {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .example-table table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        
+        .example-table th,
+        .example-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .example-table th {
+            background: #f8f9fa;
+            font-weight:  600;
+        }
+        
+        /* 미매핑 모델명 관리 섹션 */
+        .unmapped-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .unmapped-section h2 {
+            color: #856404;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        
+        .unmapped-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .unmapped-table th,
+        .unmapped-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .unmapped-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .unmapped-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .unmapped-table .model-name {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .unmapped-table .count {
+            color: #ff6b6b;
+            font-weight: 600;
+        }
+        
+        .unmapped-table .chipset-input {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            width: 200px;
+        }
+        
+        .unmapped-table .btn-add {
+            padding: 5px 10px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        
+        .unmapped-table .btn-add:hover {
+            background: #218838;
+        }
+        
+        .quick-add-section {
+            background: #e8f5e9;
+            border: 1px solid #d4edda;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .quick-add-section h4 {
+            color: #155724;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        
+        .input-group input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .input-group button {
+            padding: 8px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .input-group button:hover {
+            background: #218838;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+            color: #856404;
         }
         
         .upload-history {
             margin-top: 10px;
+            padding: 10px;
+            background: #e8f5e9;
+            border-radius: 5px;
             font-size: 13px;
-            color: #999;
+            color: #155724;
+            display: none;
         }
         
-        .badge-new {
-            background: #ff6b6b;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 3px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-left: 10px;
+        .upload-history.show {
+            display: block;
         }
     </style>
 </head>
@@ -191,233 +436,532 @@
     </div>
     
     <div class="container">
-        <!-- 1. 칩셋 매핑 파일 -->
-        <div class="upload-section">
-            <h3>📋 1. 칩셋 매핑 파일 업로드</h3>
-            <div class="upload-form">
-                <div class="file-input">
-                    <input type="file" id="chipsetFile" accept=".xlsx,.xls">
-                </div>
-                <button class="btn btn-primary" onclick="uploadChipset()">업로드</button>
+        <!-- 미매핑 모델명 관리 -->
+        <div class="unmapped-section" id="unmappedSection" style="display: none;">
+            <h2>⚠️ 칩셋 미매핑 모델명 관리</h2>
+            <p>칩셋이 매핑되지 않은 모델명을 확인하고 직접 칩셋을 추가할 수 있습니다.</p>
+            
+            <div class="unmapped-table-container">
+                <table class="unmapped-table">
+                    <thead>
+                        <tr>
+                            <th>모델명</th>
+                            <th>VOC 건수</th>
+                            <th>칩셋 입력</th>
+                            <th>작업</th>
+                        </tr>
+                    </thead>
+                    <tbody id="unmappedModelsBody">
+                        <!-- 동적으로 생성 -->
+                    </tbody>
+                </table>
             </div>
-            <div id="chipsetStatus" class="status-message"></div>
-            <div class="upload-info">
-                💡 칩셋 매핑 파일: 모델명과 칩셋 정보를 매핑하는 파일
+            
+            <div class="quick-add-section">
+                <h4>🚀 빠른 칩셋 매핑 추가</h4>
+                <div class="input-group">
+                    <input type="text" id="modelName" placeholder="모델명 (예: SM-S921N)">
+                    <input type="text" id="chipsetName" placeholder="칩셋명 (예: Snapdragon 8 Gen 1)">
+                    <button onclick="addChipsetMapping()">추가</button>
+                </div>
+                <div class="input-group">
+                    <button class="btn btn-warning" onclick="refreshUnmappedModels()">🔄 목록 새로고침</button>
+                </div>
             </div>
         </div>
         
-        <!-- 2. 앱 키워드 파일 -->
+        <!-- 사내 VOC 업로드 -->
         <div class="upload-section">
-            <h3>📱 2. 앱 키워드 파일 업로드</h3>
-            <div class="upload-form">
-                <div class="file-input">
-                    <input type="file" id="appFile" accept=".xlsx,.xls">
-                </div>
-                <button class="btn btn-primary" onclick="uploadApp()">업로드</button>
+            <h2>📊 사내 VOC 파일 업로드</h2>
+            <p>사내 VOC 데이터가 포함된 엑셀 파일을 업로드하세요. (DRM 파일 지원)</p>
+            
+            <div class="upload-box" id="vocUploadBox" onclick="document.getElementById('vocFile').click()">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text">클릭하거나 파일을 여기에 드롭하세요</div>
+                <div class="file-info">엑셀 파일 (.xlsx, .xls) - DRM 파일 지원</div>
             </div>
-            <div id="appStatus" class="status-message"></div>
-            <div class="upload-info">
-                💡 앱 키워드 파일: 3rd Party 앱 감지를 위한 키워드 목록
+            
+            <input type="file" id="vocFile" accept=".xlsx,.xls" onchange="handleFileSelect('voc', this.files[0])">
+            
+            <div class="selected-file" id="vocSelectedFile">
+                <div class="selected-file-name" id="vocFileName"></div>
+                <div class="selected-file-size" id="vocFileSize"></div>
             </div>
-        </div>
-        
-        <!-- 3. 사내 VOC 파일 -->
-        <div class="upload-section">
-            <h3>📊 3. 사내 VOC 파일 업로드</h3>
-            <div class="upload-form">
-                <div class="file-input">
-                    <input type="file" id="vocFile" accept=".xlsx,.xls">
-                </div>
-                <button class="btn btn-primary" onclick="uploadVOC()">업로드</button>
+            
+            <div class="progress-bar" id="vocProgress">
+                <div class="progress-fill" id="vocProgressFill">0%</div>
             </div>
-            <div id="vocStatus" class="status-message"></div>
-            <div class="upload-info">
-                💡 사내 VOC 파일: A, H, M, N, O, R, U, V 열 필수
-            </div>
-        </div>
-        
-        <!-- 4. Q-data 파일 (NEW) -->
-        <div class="upload-section" style="border: 2px solid #ff6b6b;">
-            <h3>🔧 4. Q-data 파일 업로드<span class="badge-new">NEW</span></h3>
-            <div class="upload-form">
-                <div class="file-input">
-                    <input type="file" id="qdataFile" accept=".xlsx,.xls">
-                </div>
-                <button class="btn btn-primary" onclick="uploadQData()">업로드</button>
-            </div>
-            <div id="qdataStatus" class="status-message"></div>
-            <div class="upload-info">
-                <strong>⚠️ 주의사항:</strong>
+            
+            <button class="btn btn-primary" id="vocUploadBtn" onclick="uploadFile('voc')" disabled>
+                업로드
+            </button>
+            <button class="btn btn-secondary" onclick="clearFile('voc')">취소</button>
+            
+            <div class="message" id="vocMessage"></div>
+            
+            <div class="info-box">
+                <h4>📋 사내 VOC 파일 구조</h4>
                 <ul>
-                    <li>9행부터 데이터가 시작되어야 합니다</li>
-                    <li>DRM이 걸린 파일도 지원됩니다</li>
-                    <li>필수 컬럼: F(서비스일자), M(처리유형), P(수리명), Z(모델명), AD(S/N), AR(LOG ID)</li>
-                    <li>서비스일자 형식: YYMMDD (예: 260209)</li>
-                    <li>중복 데이터(동일 S/N + LOG ID)는 자동으로 제외됩니다</li>
+                    <li>A열: 사례코드 (예: P230710-12345)</li>
+                    <li>H열: title (모델명 포함)</li>
+                    <li>M열: 문제점 ([Model No.] 포함 가능)</li>
+                    <li>N열: 재현경로 ([Original Contents], [Build No.], [OS Ver.] 포함)</li>
+                    <li>O열: 해결자</li>
+                    <li>R열: Resolve Option</li>
+                    <li>U열: 원인</li>
+                    <li>V열: 대책</li>
                 </ul>
             </div>
+        </div>
+        
+        <!-- Q-data 업로드 (NEW) -->
+        <div class="upload-section qdata-section">
+            <h2>🔧 Q-data 파일 업로드<span class="badge-new">NEW</span></h2>
+            <p>Q-data (품질 데이터) 엑셀 파일을 업로드하세요. (DRM 파일 지원)</p>
+            
+            <div class="upload-box" id="qdataUploadBox" onclick="document.getElementById('qdataFile').click()">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text">클릭하거나 파일을 여기에 드롭하세요</div>
+                <div class="file-info">엑셀 파일 (.xlsx, .xls) - DRM 파일 지원 (최대 8가지 방법 시도)</div>
+            </div>
+            
+            <input type="file" id="qdataFile" accept=".xlsx,.xls" onchange="handleFileSelect('qdata', this.files[0])">
+            
+            <div class="selected-file" id="qdataSelectedFile">
+                <div class="selected-file-name" id="qdataFileName"></div>
+                <div class="selected-file-size" id="qdataFileSize"></div>
+            </div>
+            
+            <div class="progress-bar" id="qdataProgress">
+                <div class="progress-fill" id="qdataProgressFill">0%</div>
+            </div>
+            
+            <button class="btn btn-primary" id="qdataUploadBtn" onclick="uploadFile('qdata')" disabled>
+                업로드
+            </button>
+            <button class="btn btn-secondary" onclick="clearFile('qdata')">취소</button>
+            
+            <div class="message" id="qdataMessage"></div>
+            
             <div class="upload-history" id="qdataHistory"></div>
+            
+            <div class="info-box">
+                <h4>📋 Q-data 파일 구조</h4>
+                <p><strong>⚠️ 주의사항:</strong></p>
+                <ul>
+                    <li><strong>9행부터 데이터가 시작</strong>되어야 합니다 (1~8행은 헤더)</li>
+                    <li>DRM이 걸린 파일도 지원됩니다 (최대 8가지 방법으로 자동 처리)</li>
+                    <li>중복 데이터(동일 S/N + LOG ID)는 자동으로 제외됩니다</li>
+                </ul>
+                <h4 style="margin-top: 15px;">필수 컬럼:</h4>
+                <ul>
+                    <li>F열: 서비스일자 (YYMMDD 형식, 예: 260209 → 2026-02-09)</li>
+                    <li>M열: 처리유형 (자재미사용/자재사용/반품)</li>
+                    <li>P열: 수리명 (8가지 유형)</li>
+                    <li>Q열: 수리 세부 내용</li>
+                    <li>T열: 상세내용</li>
+                    <li>Z열: 모델명 (예: SM-S901N)</li>
+                    <li>AD열: S/N (고유번호)</li>
+                    <li>AR열: LOG ID (고유번호)</li>
+                    <li>BE열: 수리전 S/W</li>
+                    <li>BF열: 수리 S/W</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 칩셋 매핑 업로드 -->
+        <div class="upload-section">
+            <h2>💻 칩셋 매핑 파일 업로드</h2>
+            <p>모델명과 칩셋을 매핑하는 엑셀 파일을 업로드하세요.</p>
+            
+            <div class="upload-box" id="chipsetUploadBox" onclick="document.getElementById('chipsetFile').click()">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text">클릭하거나 파일을 여기에 드롭하세요</div>
+                <div class="file-info">엑셀 파일 (.xlsx, .xls)</div>
+            </div>
+            
+            <input type="file" id="chipsetFile" accept=".xlsx,.xls" onchange="handleFileSelect('chipset', this.files[0])">
+            
+            <div class="selected-file" id="chipsetSelectedFile">
+                <div class="selected-file-name" id="chipsetFileName"></div>
+                <div class="selected-file-size" id="chipsetFileSize"></div>
+            </div>
+            
+            <div class="progress-bar" id="chipsetProgress">
+                <div class="progress-fill" id="chipsetProgressFill">0%</div>
+            </div>
+            
+            <button class="btn btn-primary" id="chipsetUploadBtn" onclick="uploadFile('chipset')" disabled>
+                업로드
+            </button>
+            <button class="btn btn-secondary" onclick="clearFile('chipset')">취소</button>
+            
+            <div class="message" id="chipsetMessage"></div>
+            
+            <div class="info-box">
+                <h4>📋 칩셋 매핑 파일 형식</h4>
+                <ul>
+                    <li>첫 번째 열: 모델명 (예: SM-S901N)</li>
+                    <li>두 번째 열: 칩셋명 (예: Snapdragon 8 Gen 1)</li>
+                </ul>
+                <div class="example-table">
+                    <table>
+                        <tr>
+                            <th>모델명</th>
+                            <th>칩셋</th>
+                        </tr>
+                        <tr>
+                            <td>SM-S901N</td>
+                            <td>Snapdragon 8 Gen 1</td>
+                        </tr>
+                        <tr>
+                            <td>SM-S908N</td>
+                            <td>Snapdragon 8 Gen 1</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 3rd Party 앱 키워드 업로드 -->
+        <div class="upload-section">
+            <h2>📲 3rd Party 앱 키워드 업로드</h2>
+            <p>앱 이름과 검색 키워드를 매핑하는 엑셀 파일을 업로드하세요.</p>
+            
+            <div class="upload-box" id="appUploadBox" onclick="document.getElementById('appFile').click()">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text">클릭하거나 파일을 여기에 드롭하세요</div>
+                <div class="file-info">엑셀 파일 (.xlsx, .xls)</div>
+            </div>
+            
+            <input type="file" id="appFile" accept=".xlsx,.xls" onchange="handleFileSelect('app', this.files[0])">
+            
+            <div class="selected-file" id="appSelectedFile">
+                <div class="selected-file-name" id="appFileName"></div>
+                <div class="selected-file-size" id="appFileSize"></div>
+            </div>
+            
+            <div class="progress-bar" id="appProgress">
+                <div class="progress-fill" id="appProgressFill">0%</div>
+            </div>
+            
+            <button class="btn btn-primary" id="appUploadBtn" onclick="uploadFile('app')" disabled>
+                업로드
+            </button>
+            <button class="btn btn-secondary" onclick="clearFile('app')">취소</button>
+            
+            <div class="message" id="appMessage"></div>
+            
+            <div class="info-box">
+                <h4>📋 3rd Party 앱 키워드 파일 형식</h4>
+                <ul>
+                    <li>첫 번째 열: 앱 이름 (예: 티맵)</li>
+                    <li>두 번째 열: 검색 키워드 (쉼표로 구분, 예: 티맵,tmap,T맵)</li>
+                </ul>
+                <div class="example-table">
+                    <table>
+                        <tr>
+                            <th>앱 이름</th>
+                            <th>검색 키워드</th>
+                        </tr>
+                        <tr>
+                            <td>티맵</td>
+                            <td>티맵,tmap,T맵</td>
+                        </tr>
+                        <tr>
+                            <td>카카오내비</td>
+                            <td>카카오내비,카카오 내비,kakao navi</td>
+                        </tr>
+                        <tr>
+                            <td>네이버지도</td>
+                            <td>네이버지도,네이버 지도,naver map</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
     
     <script>
-        // 칩셋 매핑 파일 업로드
-        async function uploadChipset() {
-            const fileInput = document.getElementById('chipsetFile');
-            const statusDiv = document.getElementById('chipsetStatus');
+        const files = {
+            chipset: null,
+            app: null,
+            voc: null,
+            qdata: null  // Q-data 추가
+        };
+        
+        // 드래그 앤 드롭 설정
+        ['chipsetUploadBox', 'appUploadBox', 'vocUploadBox', 'qdataUploadBox'].forEach(id => {
+            const box = document.getElementById(id);
             
-            if (!fileInput.files.length) {
-                showStatus(statusDiv, 'error', '파일을 선택해주세요.');
+            box.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                box.classList.add('dragging');
+            });
+            
+            box.addEventListener('dragleave', () => {
+                box.classList.remove('dragging');
+            });
+            
+            box.addEventListener('drop', (e) => {
+                e.preventDefault();
+                box.classList.remove('dragging');
+                
+                const type = id.replace('UploadBox', '');
+                const file = e.dataTransfer.files[0];
+                handleFileSelect(type, file);
+            });
+        });
+        
+        function handleFileSelect(type, file) {
+            if (!file) return;
+            
+            if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+                showMessage(type, '엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.', 'error');
                 return;
             }
             
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
+            files[type] = file;
             
-            showStatus(statusDiv, 'info', '업로드 중...');
+            document.getElementById(`${type}FileName`).textContent = file.name;
+            document.getElementById(`${type}FileSize`).textContent = 
+                `파일 크기: ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+            document.getElementById(`${type}SelectedFile`).classList.add('show');
+            document.getElementById(`${type}UploadBtn`).disabled = false;
             
-            try {
-                const response = await fetch('/api/upload/chipset', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    showStatus(statusDiv, 'success', result.message);
-                    fileInput.value = '';
-                } else {
-                    showStatus(statusDiv, 'error', result.error);
-                }
-            } catch (error) {
-                showStatus(statusDiv, 'error', '업로드 실패: ' + error.message);
+            hideMessage(type);
+        }
+        
+        function clearFile(type) {
+            files[type] = null;
+            document.getElementById(`${type}File`).value = '';
+            document.getElementById(`${type}SelectedFile`).classList.remove('show');
+            document.getElementById(`${type}UploadBtn`).disabled = true;
+            document.getElementById(`${type}Progress`).classList.remove('show');
+            hideMessage(type);
+            
+            // Q-data 히스토리 숨김
+            if (type === 'qdata') {
+                document.getElementById('qdataHistory').classList.remove('show');
             }
         }
         
-        // 앱 키워드 파일 업로드
-        async function uploadApp() {
-            const fileInput = document.getElementById('appFile');
-            const statusDiv = document.getElementById('appStatus');
-            
-            if (!fileInput.files.length) {
-                showStatus(statusDiv, 'error', '파일을 선택해주세요.');
-                return;
-            }
+        async function uploadFile(type) {
+            const file = files[type];
+            if (!file) return;
             
             const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
+            formData.append('file', file);
             
-            showStatus(statusDiv, 'info', '업로드 중...');
+            const uploadBtn = document.getElementById(`${type}UploadBtn`);
+            uploadBtn.disabled = true;
             
-            try {
-                const response = await fetch('/api/upload/app', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    showStatus(statusDiv, 'success', result.message);
-                    fileInput.value = '';
-                } else {
-                    showStatus(statusDiv, 'error', result.error);
+            // Q-data는 DRM 처리 안내 표시
+            if (type === 'qdata') {
+                uploadBtn.textContent = 'DRM 처리 중...';
+            } else {
+                uploadBtn.textContent = '업로드 중...';
+            }
+            
+            const progressBar = document.getElementById(`${type}Progress`);
+            const progressFill = document.getElementById(`${type}ProgressFill`);
+            progressBar.classList.add('show');
+            
+            // 진행률 애니메이션
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 5;
+                if (progress >= 90) {
+                    clearInterval(interval);
                 }
-            } catch (error) {
-                showStatus(statusDiv, 'error', '업로드 실패: ' + error.message);
-            }
-        }
-        
-        // VOC 파일 업로드
-        async function uploadVOC() {
-            const fileInput = document.getElementById('vocFile');
-            const statusDiv = document.getElementById('vocStatus');
-            
-            if (!fileInput.files.length) {
-                showStatus(statusDiv, 'error', '파일을 선택해주세요.');
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-            
-            showStatus(statusDiv, 'info', '업로드 중... (DRM 파일 처리 중)');
+                progressFill.style.width = progress + '%';
+                progressFill.textContent = progress + '%';
+            }, 100);
             
             try {
-                const response = await fetch('/api/upload/voc', {
+                const endpoints = {
+                    chipset: '/api/upload/chipset_mapping',
+                    app: '/api/upload/app_keywords',
+                    voc: '/api/upload/internal_voc',
+                    qdata: '/api/upload/qdata'  // Q-data 엔드포인트
+                };
+                
+                const response = await fetch(endpoints[type], {
                     method: 'POST',
                     body: formData
                 });
                 
-                const result = await response.json();
+                clearInterval(interval);
+                progressFill.style.width = '100%';
+                progressFill.textContent = '100%';
                 
-                if (result.success) {
-                    showStatus(statusDiv, 'success', result.message);
-                    fileInput.value = '';
-                } else {
-                    showStatus(statusDiv, 'error', result.error);
-                }
-            } catch (error) {
-                showStatus(statusDiv, 'error', '업로드 실패: ' + error.message);
-            }
-        }
-        
-        // Q-data 파일 업로드 (NEW)
-        async function uploadQData() {
-            const fileInput = document.getElementById('qdataFile');
-            const statusDiv = document.getElementById('qdataStatus');
-            const historyDiv = document.getElementById('qdataHistory');
-            
-            if (!fileInput.files.length) {
-                showStatus(statusDiv, 'error', '파일을 선택해주세요.');
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-            
-            showStatus(statusDiv, 'info', '업로드 중... (DRM 파일 처리 중, 최대 8가지 방법 시도)');
-            
-            try {
-                const response = await fetch('/api/upload/qdata', {
-                    method: 'POST',
-                    body: formData
-                });
+                const data = await response.json();
                 
-                const result = await response.json();
-                
-                if (result.success) {
-                    showStatus(statusDiv, 'success', 
-                        `✅ ${result.message}\n` +
-                        `📊 저장: ${result.inserted}건 | 중복 제외: ${result.duplicates}건`
-                    );
-                    fileInput.value = '';
+                if (response.ok) {
+                    let successMessage = data.message;
                     
-                    // 업로드 이력 표시
-                    const now = new Date().toLocaleString('ko-KR');
-                    historyDiv.textContent = `마지막 업로드: ${now} (${result.inserted}건)`;
+                    // Q-data 상세 정보 표시
+                    if (type === 'qdata' && data.inserted !== undefined) {
+                        successMessage = `✅ ${data.message}\n📊 저장: ${data.inserted}건 | 중복 제외: ${data.duplicates}건`;
+                        
+                        // 업로드 이력 표시
+                        const now = new Date().toLocaleString('ko-KR');
+                        const historyDiv = document.getElementById('qdataHistory');
+                        historyDiv.textContent = `📅 마지막 업로드: ${now} (${data.inserted}건 저장)`;
+                        historyDiv.classList.add('show');
+                    }
+                    
+                    showMessage(type, successMessage, 'success');
+                    
+                    // VOC 또는 칩셋 매핑 업로드 성공 시 미매핑 모델명 목록 새로고침
+                    if (type === 'voc' || type === 'chipset') {
+                        setTimeout(() => {
+                            loadUnmappedModels();
+                        }, 2000);
+                    }
+                    
+                    setTimeout(() => {
+                        clearFile(type);
+                    }, 3000);
                 } else {
-                    showStatus(statusDiv, 'error', '❌ ' + result.error);
+                    showMessage(type, data.error || '업로드 실패', 'error');
                 }
             } catch (error) {
-                showStatus(statusDiv, 'error', '업로드 실패: ' + error.message);
+                clearInterval(interval);
+                showMessage(type, '업로드 중 오류가 발생했습니다: ' + error.message, 'error');
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '업로드';
             }
         }
         
-        // 상태 메시지 표시
-        function showStatus(element, type, message) {
-            element.className = 'status-message status-' + type;
-            element.textContent = message;
-            element.style.display = 'block';
-            
-            // 성공 메시지는 5초 후 자동 숨김
-            if (type === 'success') {
-                setTimeout(() => {
-                    element.style.display = 'none';
-                }, 5000);
+        function showMessage(type, text, messageType) {
+            const message = document.getElementById(`${type}Message`);
+            message.textContent = text;
+            message.className = `message show ${messageType}`;
+        }
+        
+        function hideMessage(type) {
+            const message = document.getElementById(`${type}Message`);
+            message.classList.remove('show');
+        }
+        
+        // 미매핑 모델명 관리 기능
+        async function loadUnmappedModels() {
+            try {
+                const response = await fetch('/api/unmapped-models');
+                const data = await response.json();
+                
+                if (data.success && data.total_unmapped > 0) {
+                    document.getElementById('unmappedSection').style.display = 'block';
+                    
+                    const tbody = document.getElementById('unmappedModelsBody');
+                    tbody.innerHTML = '';
+                    
+                    data.unmapped_models.forEach(model => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="model-name">${model.model_name}</td>
+                            <td class="count">${model.count}</td>
+                            <td>
+                                <input type="text" class="chipset-input" 
+                                       id="chipset-${model.model_name}" 
+                                       placeholder="칩셋명 입력">
+                            </td>
+                            <td>
+                                <button class="btn-add" onclick="addChipsetForModel('${model.model_name}')">
+                                    추가
+                                </button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    document.getElementById('unmappedSection').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('미매핑 모델명 로드 실패:', error);
             }
         }
+        
+        async function addChipsetForModel(modelName) {
+            const chipsetInput = document.getElementById(`chipset-${modelName}`);
+            const chipset = chipsetInput.value.trim();
+            
+            if (!chipset) {
+                alert('칩셋명을 입력해주세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/chipset-mapping/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model_name: modelName,
+                        chipset: chipset
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    loadUnmappedModels();
+                } else {
+                    alert('추가 실패: ' + data.error);
+                }
+            } catch (error) {
+                alert('오류 발생: ' + error.message);
+            }
+        }
+        
+        async function addChipsetMapping() {
+            const modelName = document.getElementById('modelName').value.trim();
+            const chipsetName = document.getElementById('chipsetName').value.trim();
+            
+            if (!modelName || !chipsetName) {
+                alert('모델명과 칩셋명을 모두 입력해주세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/chipset-mapping/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model_name: modelName,
+                        chipset: chipsetName
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    document.getElementById('modelName').value = '';
+                    document.getElementById('chipsetName').value = '';
+                    loadUnmappedModels();
+                } else {
+                    alert('추가 실패: ' + data.error);
+                }
+            } catch (error) {
+                alert('오류 발생: ' + error.message);
+            }
+        }
+        
+        function refreshUnmappedModels() {
+            loadUnmappedModels();
+        }
+        
+        // 페이지 로드 시 미매핑 모델명 로드
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUnmappedModels();
+        });
     </script>
 </body>
 </html>
