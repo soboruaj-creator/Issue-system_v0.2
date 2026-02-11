@@ -508,17 +508,17 @@
         </div>
         
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('model')">휴대폰 모델별</button>
+            <button class="tab active" onclick="switchTab('qdata')">Q-data 분석</button>
+            <button class="tab" onclick="switchTab('model')">휴대폰 모델별</button>
             <button class="tab" onclick="switchTab('modelTrend')">모델별 추이</button>
             <button class="tab" onclick="switchTab('weekly')">주별 추이</button>
             <button class="tab" onclick="switchTab('monthly')">월별 추이</button>
             <button class="tab" onclick="switchTab('chipset')">칩셋별</button>
             <button class="tab" onclick="switchTab('app')">3rd Party 앱별</button>
-            <button class="tab" onclick="switchTab('qdata')">Q-data 분석</button>
         </div>
         
         <!-- 휴대폰 모델별 통계 -->
-        <div id="modelTab" class="tab-content active">
+        <div id="modelTab" class="tab-content">
             <div class="chart-section">
                 <h3>📱 휴대폰 모델별 VOC 통계
                     <span class="total-count" id="modelTotalCount"></span>
@@ -682,7 +682,7 @@
         </div>
         
         <!-- Q-data 분석 -->
-        <div id="qdataTab" class="tab-content">
+        <div id="qdataTab" class="tab-content active">
             <div class="chart-section">
                 <h3>🔧 Q-data 분석
                     <span class="total-count" id="qdataTotalCount"></span>
@@ -910,11 +910,23 @@
                 row.innerHTML = `
                     <td>${index + 1}</td>
                     <td><strong>${item.model_name}</strong></td>
-                    <td style="color: #667eea; font-weight: 600;">${item.count.toLocaleString()}</td>
+                    <td style="color: #667eea; font-weight: 600; cursor: pointer; text-decoration: underline;" 
+                        onclick="downloadModelVOC('${item.model_name}')">
+                        ${item.count.toLocaleString()}
+                    </td>
                     <td>${percentage}%</td>
                 `;
                 tbody.appendChild(row);
             });
+        }
+        
+        // 모델별 VOC 다운로드
+        function downloadModelVOC(modelName) {
+            const queryString = getQueryString();
+            const params = new URLSearchParams(queryString);
+            params.append('model_name', modelName);
+            
+            window.location.href = '/api/export/voc/excel?' + params.toString();
         }
         
         // 모델 목록 로드 (모델별 추이용)
@@ -1275,8 +1287,8 @@
                                 // 메모가 있으면 팝업 표시
                                 showMemoPopup(month, memo.memo, memo.updated_date);
                             } else {
-                                // 메모가 없으면 월별 상세 페이지로
-                                window.location.href = `/voc/monthly/${month}`;
+                                // 메모가 없으면 해당 월 VOC 다운로드
+                                downloadMonthlyVOC(month);
                             }
                         }
                     }
@@ -1712,8 +1724,17 @@
             window.location.href = '/api/export/qdata/excel?' + params.toString();
         }
         
-        // 페이지 로드 시 모델별 통계 로드
-        loadStatistics('model');
+        // 월별 VOC 다운로드
+        function downloadMonthlyVOC(month) {
+            const queryString = getQueryString();
+            const params = new URLSearchParams(queryString);
+            params.append('month', month);
+            
+            window.location.href = '/api/export/voc/excel?' + params.toString();
+        }
+        
+        // 페이지 로드 시 Q-data 통계 로드
+        loadStatistics('qdata');
     </script>
 </body>
 </html>
