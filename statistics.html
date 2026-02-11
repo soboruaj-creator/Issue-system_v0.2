@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>통계 분석 - VOC 관리 시스템</title>
+    <title>통계 분석 - M voc 관리 시스템</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Select2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -481,7 +481,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>🎯 VOC 통합 관리 시스템</h1>
+        <h1>🎯 M voc 통합 관리 시스템</h1>
         <div class="nav">
             <a href="/">대시보드</a>
             <a href="/upload">파일 업로드</a>
@@ -508,8 +508,8 @@
         </div>
         
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('qdata')">Q-data 분석</button>
-            <button class="tab" onclick="switchTab('model')">휴대폰 모델별</button>
+            <button class="tab active" onclick="switchTab('qdata')">Q-data</button>
+            <button class="tab" onclick="switchTab('model')">M voc</button>
             <button class="tab" onclick="switchTab('modelTrend')">모델별 추이</button>
             <button class="tab" onclick="switchTab('weekly')">주별 추이</button>
             <button class="tab" onclick="switchTab('monthly')">월별 추이</button>
@@ -520,7 +520,7 @@
         <!-- 휴대폰 모델별 통계 -->
         <div id="modelTab" class="tab-content">
             <div class="chart-section">
-                <h3>📱 휴대폰 모델별 VOC 통계
+                <h3>📱 M voc 모델별 통계
                     <span class="total-count" id="modelTotalCount"></span>
                 </h3>
                 <div class="chart-container">
@@ -536,7 +536,7 @@
                         <tr>
                             <th>순위</th>
                             <th>모델명</th>
-                            <th>VOC 건수</th>
+                            <th>M voc 건수</th>
                             <th>비율</th>
                         </tr>
                     </thead>
@@ -548,7 +548,7 @@
         <!-- 모델별 추이 -->
         <div id="modelTrendTab" class="tab-content">
             <div class="chart-section">
-                <h3>📊 모델별 월별 추이 (VOC + Q-data)</h3>
+                <h3>📊 모델별 월별 추이 (M voc + Q-data)</h3>
                 <div class="model-trend-controls">
                     <div class="model-select-wrapper">
                         <label>모델 선택 (최대 10개):</label>
@@ -557,7 +557,7 @@
                         </select>
                         <div class="model-select-info">
                             💡 검색창에 모델명을 입력하거나 목록에서 선택하세요. 건수가 많은 순으로 정렬됩니다.<br>
-                            📊 <strong>실선</strong>은 VOC, <strong>점선</strong>은 Q-data를 나타냅니다.
+                            📊 <strong>실선</strong>은 M voc, <strong>점선</strong>은 Q-data를 나타냅니다.
                         </div>
                     </div>
                     <button class="btn btn-primary" onclick="loadModelTrend()" style="margin-top: 28px;">조회</button>
@@ -571,7 +571,7 @@
         <!-- 주별 추이 -->
         <div id="weeklyTab" class="tab-content">
             <div class="chart-section">
-                <h3>📅 주별 VOC 추이</h3>
+                <h3>📅 주별 M voc 추이</h3>
                 <div class="chart-container">
                     <canvas id="weeklyChart"></canvas>
                 </div>
@@ -581,7 +581,7 @@
         <!-- 월별 추이 -->
         <div id="monthlyTab" class="tab-content">
             <div class="chart-section">
-                <h3>📅 월별 VOC + Q-data 통합 추이</h3>
+                <h3>📅 월별 M voc + Q-data 통합 추이</h3>
                 <div class="chart-container">
                     <canvas id="monthlyChart"></canvas>
                 </div>
@@ -632,7 +632,7 @@
         <!-- 칩셋별 통계 -->
         <div id="chipsetTab" class="tab-content">
             <div class="chart-section">
-                <h3>💻 칩셋별 VOC 통계</h3>
+                <h3>💻 칩셋별 M voc 통계</h3>
                 <div class="chart-container">
                     <canvas id="chipsetChart"></canvas>
                 </div>
@@ -646,7 +646,7 @@
                         <tr>
                             <th>순위</th>
                             <th>칩셋</th>
-                            <th>VOC 건수</th>
+                            <th>M voc 건수</th>
                             <th>비율</th>
                         </tr>
                     </thead>
@@ -658,7 +658,7 @@
         <!-- 앱별 통계 -->
         <div id="appTab" class="tab-content">
             <div class="chart-section">
-                <h3>📲 3rd Party 앱별 VOC 통계</h3>
+                <h3>📲 3rd Party 앱별 M voc 통계</h3>
                 <div class="chart-container">
                     <canvas id="appChart"></canvas>
                 </div>
@@ -672,7 +672,7 @@
                         <tr>
                             <th>순위</th>
                             <th>앱 이름</th>
-                            <th>VOC 건수</th>
+                            <th>M voc 건수</th>
                             <th>비율</th>
                         </tr>
                     </thead>
@@ -684,7 +684,7 @@
         <!-- Q-data 분석 -->
         <div id="qdataTab" class="tab-content active">
             <div class="chart-section">
-                <h3>🔧 Q-data 분석
+                <h3>🔧 Q-data
                     <span class="total-count" id="qdataTotalCount"></span>
                 </h3>
                 <div class="chart-container">
@@ -754,8 +754,8 @@
             const activeTab = document.querySelector('.tab.active');
             const tabText = activeTab.textContent.trim();
             const tabMap = {
-                'Q-data 분석': 'qdata',
-                '휴대폰 모델별': 'model',
+                'Q-data': 'qdata',
+                'M voc': 'model',
                 '모델별 추이': 'modelTrend',
                 '주별 추이': 'weekly',
                 '월별 추이': 'monthly',
@@ -775,8 +775,8 @@
             const activeTab = document.querySelector('.tab.active');
             const tabText = activeTab.textContent.trim();
             const tabMap = {
-                'Q-data 분석': 'qdata',
-                '휴대폰 모델별': 'model',
+                'Q-data': 'qdata',
+                'M voc': 'model',
                 '모델별 추이': 'modelTrend',
                 '주별 추이': 'weekly',
                 '월별 추이': 'monthly',
@@ -875,7 +875,7 @@
                 data: {
                     labels: top10.map(item => item.model_name),
                     datasets: [{
-                        label: 'VOC 건수',
+                        label: 'M voc 건수',
                         data: top10.map(item => item.count),
                         backgroundColor: 'rgba(102, 126, 234, 0.8)',
                         borderColor: 'rgba(102, 126, 234, 1)',
@@ -1056,7 +1056,7 @@
                 });
                 
                 datasets.push({
-                    label: `${modelName} VOC`,
+                    label: `${modelName} M voc`,
                     data: vocCounts,
                     borderColor: colors[index % colors.length],
                     backgroundColor: colors[index % colors.length].replace('1)', '0.2)'),
@@ -1125,7 +1125,7 @@
                 data: {
                     labels: data.map(item => item.week),
                     datasets: [{
-                        label: 'VOC 건수',
+                        label: 'M voc 건수',
                         data: data.map(item => item.count),
                         backgroundColor: 'rgba(102, 126, 234, 0.2)',
                         borderColor: 'rgba(102, 126, 234, 1)',
@@ -1197,7 +1197,7 @@
             // 데이터셋 구성 (Q-data 있을 때만 추가)
             const datasets = [
                 {
-                    label: 'VOC 건수',
+                    label: 'M voc 건수',
                     data: sortedMonths.map(month => vocMap[month] || 0),
                     backgroundColor: 'rgba(118, 75, 162, 0.2)',
                     borderColor: 'rgba(118, 75, 162, 1)',
@@ -1585,7 +1585,7 @@
                 data: {
                     labels: data.map(item => item.third_party_app),
                     datasets: [{
-                        label: 'VOC 건수',
+                        label: 'M voc 건수',
                         data: data.map(item => item.count),
                         backgroundColor: 'rgba(40, 167, 69, 0.8)',
                         borderColor: 'rgba(40, 167, 69, 1)',
