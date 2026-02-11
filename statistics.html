@@ -514,6 +514,7 @@
             <button class="tab" onclick="switchTab('monthly')">월별 추이</button>
             <button class="tab" onclick="switchTab('chipset')">칩셋별</button>
             <button class="tab" onclick="switchTab('app')">3rd Party 앱별</button>
+            <button class="tab" onclick="switchTab('qdata')">Q-data 분석</button>
         </div>
         
         <!-- 휴대폰 모델별 통계 -->
@@ -547,7 +548,7 @@
         <!-- 모델별 추이 -->
         <div id="modelTrendTab" class="tab-content">
             <div class="chart-section">
-                <h3>📊 모델별 월별 추이</h3>
+                <h3>📊 모델별 월별 추이 (VOC + Q-data)</h3>
                 <div class="model-trend-controls">
                     <div class="model-select-wrapper">
                         <label>모델 선택 (최대 10개):</label>
@@ -555,7 +556,8 @@
                             <!-- 동적으로 로드 -->
                         </select>
                         <div class="model-select-info">
-                            💡 검색창에 모델명을 입력하거나 목록에서 선택하세요. 건수가 많은 순으로 정렬됩니다.
+                            💡 검색창에 모델명을 입력하거나 목록에서 선택하세요. 건수가 많은 순으로 정렬됩니다.<br>
+                            📊 <strong>실선</strong>은 VOC, <strong>점선</strong>은 Q-data를 나타냅니다.
                         </div>
                     </div>
                     <button class="btn btn-primary" onclick="loadModelTrend()" style="margin-top: 28px;">조회</button>
@@ -579,12 +581,13 @@
         <!-- 월별 추이 -->
         <div id="monthlyTab" class="tab-content">
             <div class="chart-section">
-                <h3>📅 월별 VOC 추이</h3>
+                <h3>📅 월별 VOC + Q-data 통합 추이</h3>
                 <div class="chart-container">
                     <canvas id="monthlyChart"></canvas>
                 </div>
                 <div style="margin-top: 15px; color: #666; font-size: 14px;">
-                    💡 <strong>📌 아이콘</strong>이 표시된 월은 메모가 있습니다. 포인트에 마우스를 올리면 메모 미리보기를 볼 수 있고, 클릭하면 전체 메모를 확인할 수 있습니다.
+                    💡 <strong>📌 아이콘</strong>이 표시된 월은 메모가 있습니다. 포인트에 마우스를 올리면 메모 미리보기를 볼 수 있고, 클릭하면 전체 메모를 확인할 수 있습니다.<br>
+                    📊 <strong>실선</strong>은 VOC, <strong>점선</strong>은 Q-data를 나타냅니다.
                 </div>
             </div>
             
@@ -675,6 +678,39 @@
                     </thead>
                     <tbody id="appTableBody"></tbody>
                 </table>
+            </div>
+        </div>
+        
+        <!-- Q-data 분석 -->
+        <div id="qdataTab" class="tab-content">
+            <div class="chart-section">
+                <h3>🔧 Q-data 분석
+                    <span class="total-count" id="qdataTotalCount"></span>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="qdataChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-section">
+                <h3>상세 데이터</h3>
+                <div id="qdataLoading" class="loading">데이터를 불러오는 중...</div>
+                <table id="qdataTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">순위</th>
+                            <th style="width: 150px;">모델명</th>
+                            <th style="width: 120px;">Q-data 건수</th>
+                            <th style="width: 80px;">비율</th>
+                            <th style="width: 300px;">처리유형 분포</th>
+                            <th style="width: 100px;">다운로드</th>
+                        </tr>
+                    </thead>
+                    <tbody id="qdataTableBody"></tbody>
+                </table>
+                <div style="margin-top: 15px; color: #666; font-size: 14px;">
+                    💡 처리유형 분포는 각 모델별로 표시됩니다. 📥 아이콘을 클릭하면 해당 모델의 Q-data를 엑셀로 다운로드할 수 있습니다.
+                </div>
             </div>
         </div>
     </div>
@@ -797,6 +833,9 @@
                         break;
                     case 'app':
                         await loadAppStatistics();
+                        break;
+                    case 'qdata':
+                        await loadQDataStatistics();
                         break;
                 }
             } catch (error) {
@@ -929,7 +968,8 @@
                 return;
             }
             
-            const response = await fetch('/api/statistics/models/monthly', {
+            // VOC 데이터 가져오기
+            const vocResponse = await fetch('/api/statistics/models/monthly', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -939,7 +979,27 @@
                 })
             });
             
-            const data = await response.json();
+            const vocData = await vocResponse.json();
+            
+            // Q-data 가져오기 (에러 처리)
+            let qdataData = {};
+            try {
+                const qdataResponse = await fetch('/api/statistics/qdata/models/monthly', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model_names: selectedModels
+                    })
+                });
+                
+                if (qdataResponse.ok) {
+                    qdataData = await qdataResponse.json();
+                }
+            } catch (error) {
+                console.log('Q-data 없음 또는 로드 실패 (VOC만 표시)');
+            }
             
             // 차트 생성
             const ctx = document.getElementById('modelTrendChart');
@@ -947,40 +1007,70 @@
             
             // 모든 월 수집
             const allMonths = new Set();
-            Object.values(data).forEach(modelData => {
+            Object.values(vocData).forEach(modelData => {
                 modelData.forEach(item => allMonths.add(item.month));
             });
+            if (qdataData && Object.keys(qdataData).length > 0) {
+                Object.values(qdataData).forEach(modelData => {
+                    modelData.forEach(item => allMonths.add(item.month));
+                });
+            }
             const sortedMonths = Array.from(allMonths).sort();
             
-            // 데이터셋 생성
-            const datasets = selectedModels.map((modelName, index) => {
-                const modelData = data[modelName] || [];
-                const counts = sortedMonths.map(month => {
-                    const found = modelData.find(item => item.month === month);
+            const colors = [
+                'rgba(102, 126, 234, 1)',
+                'rgba(118, 75, 162, 1)',
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)',
+                'rgba(199, 199, 199, 1)',
+                'rgba(83, 102, 255, 1)'
+            ];
+            
+            // 데이터셋 생성 (VOC + Q-data)
+            const datasets = [];
+            
+            selectedModels.forEach((modelName, index) => {
+                // VOC 데이터셋 (실선)
+                const vocModelData = vocData[modelName] || [];
+                const vocCounts = sortedMonths.map(month => {
+                    const found = vocModelData.find(item => item.month === month);
                     return found ? found.count : 0;
                 });
                 
-                const colors = [
-                    'rgba(102, 126, 234, 1)',
-                    'rgba(118, 75, 162, 1)',
-                    'rgba(255, 99, 132, 1)',
-                    'rgba(54, 162, 235, 1)',
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(75, 192, 192, 1)',
-                    'rgba(153, 102, 255, 1)',
-                    'rgba(255, 159, 64, 1)',
-                    'rgba(199, 199, 199, 1)',
-                    'rgba(83, 102, 255, 1)'
-                ];
-                
-                return {
-                    label: modelName,
-                    data: counts,
+                datasets.push({
+                    label: `${modelName} VOC`,
+                    data: vocCounts,
                     borderColor: colors[index % colors.length],
                     backgroundColor: colors[index % colors.length].replace('1)', '0.2)'),
+                    borderWidth: 2,
+                    borderDash: [],  // 실선
                     tension: 0.4,
                     fill: false
-                };
+                });
+                
+                // Q-data 데이터셋 (점선) - Q-data가 있을 때만 추가
+                if (qdataData && Object.keys(qdataData).length > 0) {
+                    const qdataModelData = qdataData[modelName] || [];
+                    const qdataCounts = sortedMonths.map(month => {
+                        const found = qdataModelData.find(item => item.month === month);
+                        return found ? found.count : 0;
+                    });
+                    
+                    datasets.push({
+                        label: `${modelName} Q-data`,
+                        data: qdataCounts,
+                        borderColor: colors[index % colors.length],
+                        backgroundColor: colors[index % colors.length].replace('1)', '0.1)'),
+                        borderWidth: 2,
+                        borderDash: [5, 5],  // 점선
+                        tension: 0.4,
+                        fill: false
+                    });
+                }
             });
             
             charts.modelTrend = new Chart(ctx, {
@@ -1052,57 +1142,112 @@
         
         async function loadMonthlyStatistics() {
             const queryString = getQueryString();
-            const response = await fetch('/api/statistics/monthly' + queryString);
-            const data = await response.json();
+            const vocResponse = await fetch('/api/statistics/monthly' + queryString);
+            const vocData = await vocResponse.json();
+            
+            // Q-data 월별 통계 로드 (에러 처리)
+            let qdataData = [];
+            try {
+                const qdataResponse = await fetch('/api/statistics/qdata/monthly' + queryString);
+                if (qdataResponse.ok) {
+                    qdataData = await qdataResponse.json();
+                }
+            } catch (error) {
+                console.log('Q-data 없음 또는 로드 실패 (VOC만 표시)');
+            }
             
             // 메모 데이터 먼저 로드
             await loadMonthlyMemosForChart();
             
+            // 모든 월 수집
+            const allMonths = new Set();
+            vocData.forEach(item => allMonths.add(item.month));
+            if (qdataData && qdataData.length > 0) {
+                qdataData.forEach(item => allMonths.add(item.month));
+            }
+            const sortedMonths = Array.from(allMonths).sort();
+            
+            // VOC 데이터 맵핑
+            const vocMap = {};
+            vocData.forEach(item => vocMap[item.month] = item.count);
+            
+            // Q-data 맵핑
+            const qdataMap = {};
+            if (qdataData && qdataData.length > 0) {
+                qdataData.forEach(item => qdataMap[item.month] = item.count);
+            }
+            
             const ctx = document.getElementById('monthlyChart');
             if (charts.monthly) charts.monthly.destroy();
+            
+            // 데이터셋 구성 (Q-data 있을 때만 추가)
+            const datasets = [
+                {
+                    label: 'VOC 건수',
+                    data: sortedMonths.map(month => vocMap[month] || 0),
+                    backgroundColor: 'rgba(118, 75, 162, 0.2)',
+                    borderColor: 'rgba(118, 75, 162, 1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            borderDash: [],  // 실선
+                            // 메모 있는 포인트 스타일 커스터마이징
+                            pointStyle: sortedMonths.map(month => 
+                                monthlyMemos[month] ? 'rectRot' : 'circle'
+                            ),
+                            pointRadius: sortedMonths.map(month => 
+                                monthlyMemos[month] ? 8 : 4
+                            ),
+                            pointHoverRadius: sortedMonths.map(month => 
+                                monthlyMemos[month] ? 12 : 6
+                            ),
+                            pointBackgroundColor: sortedMonths.map(month => 
+                                monthlyMemos[month] ? '#ff6b6b' : 'rgba(118, 75, 162, 1)'
+                            ),
+                            pointBorderColor: sortedMonths.map(month => 
+                                monthlyMemos[month] ? '#ff6b6b' : 'rgba(118, 75, 162, 1)'
+                            ),
+                            pointBorderWidth: 2
+                        }
+            ];
+            
+            // Q-data가 있을 때만 Q-data 데이터셋 추가
+            if (qdataData && qdataData.length > 0) {
+                datasets.push({
+                    label: 'Q-data 건수',
+                    data: sortedMonths.map(month => qdataMap[month] || 0),
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: false,
+                    borderDash: [5, 5],  // 점선
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                    pointBorderColor: 'rgba(255, 99, 132, 1)',
+                    pointBorderWidth: 2
+                });
+            }
             
             charts.monthly = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: data.map(item => item.month),
-                    datasets: [{
-                        label: 'VOC 건수',
-                        data: data.map(item => item.count),
-                        backgroundColor: 'rgba(118, 75, 162, 0.2)',
-                        borderColor: 'rgba(118, 75, 162, 1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true,
-                        // 메모 있는 포인트 스타일 커스터마이징
-                        pointStyle: data.map(item => 
-                            monthlyMemos[item.month] ? 'rectRot' : 'circle'
-                        ),
-                        pointRadius: data.map(item => 
-                            monthlyMemos[item.month] ? 8 : 4
-                        ),
-                        pointHoverRadius: data.map(item => 
-                            monthlyMemos[item.month] ? 12 : 6
-                        ),
-                        pointBackgroundColor: data.map(item => 
-                            monthlyMemos[item.month] ? '#ff6b6b' : 'rgba(118, 75, 162, 1)'
-                        ),
-                        pointBorderColor: data.map(item => 
-                            monthlyMemos[item.month] ? '#ff6b6b' : 'rgba(118, 75, 162, 1)'
-                        ),
-                        pointBorderWidth: 2
-                    }]
+                    labels: sortedMonths,
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'top'
                         },
                         tooltip: {
                             callbacks: {
                                 afterLabel: function(context) {
-                                    const month = data[context.dataIndex].month;
+                                    const month = sortedMonths[context.dataIndex];
                                     const memo = monthlyMemos[month];
                                     if (memo) {
                                         const preview = memo.memo.length > 50 
@@ -1123,7 +1268,7 @@
                     onClick: (event, elements) => {
                         if (elements.length > 0) {
                             const index = elements[0].index;
-                            const month = data[index].month;
+                            const month = sortedMonths[index];
                             const memo = monthlyMemos[month];
                             
                             if (memo) {
@@ -1465,6 +1610,106 @@
                 `;
                 tbody.appendChild(row);
             });
+        }
+        
+        // Q-data 통계
+        async function loadQDataStatistics() {
+            const queryString = getQueryString();
+            const response = await fetch('/api/statistics/qdata/model' + queryString);
+            const data = await response.json();
+            
+            if (data.length === 0) {
+                document.getElementById('qdataLoading').textContent = '데이터가 없습니다.';
+                document.getElementById('qdataTotalCount').textContent = '';
+                return;
+            }
+            
+            // 전체 Q-data 건수 계산
+            const totalCount = data.reduce((sum, item) => sum + item.count, 0);
+            document.getElementById('qdataTotalCount').textContent = `(전체: ${totalCount.toLocaleString()}건)`;
+            
+            document.getElementById('qdataLoading').style.display = 'none';
+            document.getElementById('qdataTable').style.display = 'table';
+            
+            // 차트 생성 (Top 10)
+            const ctx = document.getElementById('qdataChart');
+            if (charts.qdata) charts.qdata.destroy();
+            
+            const top10 = data.slice(0, 10);
+            
+            charts.qdata = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: top10.map(item => item.model_name),
+                    datasets: [{
+                        label: 'Q-data 건수',
+                        data: top10.map(item => item.count),
+                        backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: 'Top 10 모델'
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+            
+            // 테이블 생성
+            const tbody = document.getElementById('qdataTableBody');
+            tbody.innerHTML = '';
+            
+            data.forEach((item, index) => {
+                const row = document.createElement('tr');
+                const percentage = ((item.count / totalCount) * 100).toFixed(1);
+                
+                // 처리유형 분포 텍스트 생성 (비율 포함)
+                let processTypeText = '';
+                if (item.process_types) {
+                    for (const [type, count] of Object.entries(item.process_types)) {
+                        const typePercentage = ((count / item.count) * 100).toFixed(1);
+                        processTypeText += `${type}: <strong>${count.toLocaleString()}</strong> (${typePercentage}%)<br>`;
+                    }
+                }
+                
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td><strong>${item.model_name}</strong></td>
+                    <td style="color: #ff6b6b; font-weight: 600;">
+                        ${item.count.toLocaleString()}
+                    </td>
+                    <td>${percentage}%</td>
+                    <td style="font-size: 13px; line-height: 1.6;">
+                        ${processTypeText || '-'}
+                    </td>
+                    <td>
+                        <button class="btn btn-info btn-small" 
+                                onclick="downloadModelQData('${item.model_name}')">
+                            📥 다운로드
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // 모델별 Q-data 다운로드
+        function downloadModelQData(modelName) {
+            const queryString = getQueryString();
+            const params = new URLSearchParams(queryString);
+            params.append('model_name', modelName);
+            
+            window.location.href = '/api/export/qdata/excel?' + params.toString();
         }
         
         // 페이지 로드 시 모델별 통계 로드
