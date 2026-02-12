@@ -248,19 +248,23 @@ def upload_qdata():
         duplicate_count = 0
         
         for _, row in df.iterrows():
-            # S/N과 LOG ID가 없는 경우 건너뛰기
-            if pd.isna(row['serial_number']) or pd.isna(row['log_id']):
-                duplicate_count += 1  # NULL 데이터도 중복으로 카운트
+            # S/N이 없는 경우 건너뛰기
+            if pd.isna(row['serial_number']):
+                duplicate_count += 1  # NULL 데이터는 중복으로 카운트
                 continue
             
             # 공백 제거 (trim)
             serial_number = str(row['serial_number']).strip()
-            log_id = str(row['log_id']).strip()
             
             # 빈 문자열 체크
-            if not serial_number or not log_id:
+            if not serial_number:
                 duplicate_count += 1
                 continue
+            
+            # log_id는 NULL 허용
+            log_id = None
+            if not pd.isna(row['log_id']):
+                log_id = str(row['log_id']).strip() if str(row['log_id']).strip() else None
             
             try:
                 cursor.execute('''
@@ -277,14 +281,14 @@ def upload_qdata():
                     row['detail_content'],
                     row['model_name'],
                     serial_number,  # 정제된 값
-                    log_id,         # 정제된 값
+                    log_id,         # NULL 허용
                     row['sw_before'],
                     row['sw_after'],
                     uploaded_date
                 ))
                 inserted_count += 1
             except sqlite3.IntegrityError:
-                # 중복 데이터 (S/N + LOG ID)
+                # 중복 데이터 (S/N 기준)
                 duplicate_count += 1
                 continue
         
@@ -489,15 +493,15 @@ def export_qdata_excel():
 
 @app.route('/api/qdata/check-duplicates', methods=['GET'])
 def check_qdata_duplicates():
-    """Q-data 중복 확인"""
+    """Q-data 중복 확인 (serial_number 기준)"""
     conn = sqlite3.connect('voc_database.db')
     cursor = conn.cursor()
     
-    # 중복된 S/N + LOG ID 조합 찾기
+    # 중복된 S/N 찾기
     cursor.execute('''
-        SELECT serial_number, log_id, COUNT(*) as count
+        SELECT serial_number, COUNT(*) as count
         FROM q_data
-        GROUP BY serial_number, log_id
+        GROUP BY serial_number
         HAVING count > 1
         ORDER BY count DESC
     ''')
@@ -513,8 +517,7 @@ def check_qdata_duplicates():
             'duplicates': [
                 {
                     'serial_number': row[0],
-                    'log_id': row[1],
-                    'count': row[2]
+                    'count': row[1]
                 } for row in duplicates
             ]
         })
@@ -527,17 +530,17 @@ def check_qdata_duplicates():
 
 @app.route('/api/qdata/remove-duplicates', methods=['POST'])
 def remove_qdata_duplicates():
-    """Q-data 중복 제거 (가장 최근 업로드만 유지)"""
+    """Q-data 중복 제거 (serial_number 기준, 가장 최근 업로드만 유지)"""
     conn = sqlite3.connect('voc_database.db')
     cursor = conn.cursor()
     
-    # 중복 제거: S/N + LOG ID가 같은 경우 가장 최근 업로드만 유지
+    # 중복 제거: S/N이 같은 경우 가장 최근 업로드만 유지
     cursor.execute('''
         DELETE FROM q_data
         WHERE id NOT IN (
             SELECT MAX(id)
             FROM q_data
-            GROUP BY serial_number, log_id
+            GROUP BY serial_number
         )
     ''')
     
