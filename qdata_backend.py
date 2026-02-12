@@ -248,6 +248,20 @@ def upload_qdata():
         duplicate_count = 0
         
         for _, row in df.iterrows():
+            # S/N과 LOG ID가 없는 경우 건너뛰기
+            if pd.isna(row['serial_number']) or pd.isna(row['log_id']):
+                duplicate_count += 1  # NULL 데이터도 중복으로 카운트
+                continue
+            
+            # 공백 제거 (trim)
+            serial_number = str(row['serial_number']).strip()
+            log_id = str(row['log_id']).strip()
+            
+            # 빈 문자열 체크
+            if not serial_number or not log_id:
+                duplicate_count += 1
+                continue
+            
             try:
                 cursor.execute('''
                     INSERT INTO q_data (
@@ -262,8 +276,8 @@ def upload_qdata():
                     row['repair_detail'],
                     row['detail_content'],
                     row['model_name'],
-                    row['serial_number'],
-                    row['log_id'],
+                    serial_number,  # 정제된 값
+                    log_id,         # 정제된 값
                     row['sw_before'],
                     row['sw_after'],
                     uploaded_date
@@ -472,6 +486,70 @@ def export_qdata_excel():
         download_name=f'qdata_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx',
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+@app.route('/api/qdata/check-duplicates', methods=['GET'])
+def check_qdata_duplicates():
+    """Q-data 중복 확인"""
+    conn = sqlite3.connect('voc_database.db')
+    cursor = conn.cursor()
+    
+    # 중복된 S/N + LOG ID 조합 찾기
+    cursor.execute('''
+        SELECT serial_number, log_id, COUNT(*) as count
+        FROM q_data
+        GROUP BY serial_number, log_id
+        HAVING count > 1
+        ORDER BY count DESC
+    ''')
+    
+    duplicates = cursor.fetchall()
+    conn.close()
+    
+    if duplicates:
+        return jsonify({
+            'success': True,
+            'has_duplicates': True,
+            'duplicate_count': len(duplicates),
+            'duplicates': [
+                {
+                    'serial_number': row[0],
+                    'log_id': row[1],
+                    'count': row[2]
+                } for row in duplicates
+            ]
+        })
+    else:
+        return jsonify({
+            'success': True,
+            'has_duplicates': False,
+            'duplicate_count': 0
+        })
+
+@app.route('/api/qdata/remove-duplicates', methods=['POST'])
+def remove_qdata_duplicates():
+    """Q-data 중복 제거 (가장 최근 업로드만 유지)"""
+    conn = sqlite3.connect('voc_database.db')
+    cursor = conn.cursor()
+    
+    # 중복 제거: S/N + LOG ID가 같은 경우 가장 최근 업로드만 유지
+    cursor.execute('''
+        DELETE FROM q_data
+        WHERE id NOT IN (
+            SELECT MAX(id)
+            FROM q_data
+            GROUP BY serial_number, log_id
+        )
+    ''')
+    
+    removed_count = cursor.rowcount
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'message': f'{removed_count}건의 중복 데이터를 제거했습니다.',
+        'removed': removed_count
+    })
 
 # ========== 초기화 ==========
 # 앱 시작 시 Q-data 테이블 생성
