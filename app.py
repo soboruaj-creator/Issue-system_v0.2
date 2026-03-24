@@ -266,7 +266,7 @@ def init_db():
         sw_before TEXT,
         sw_after TEXT,
         uploaded_date TEXT,
-        UNIQUE(serial_number, log_id)
+        UNIQUE(serial_number, service_date)
     )''')
     
     conn.commit()
@@ -2473,7 +2473,7 @@ def upload_qdata():
                 ))
                 inserted_count += 1
             except sqlite3.IntegrityError:
-                # 중복 데이터 (S/N 기준)
+                # 중복 데이터 (S/N + 서비스일자 기준)
                 duplicate_count += 1
                 continue
         
@@ -2678,22 +2678,22 @@ def export_qdata_excel():
 
 @app.route('/api/qdata/check-duplicates', methods=['GET'])
 def check_qdata_duplicates():
-    """Q-data 중복 확인 (serial_number 기준)"""
+    """Q-data 중복 확인 (serial_number + service_date 기준)"""
     conn = sqlite3.connect('voc_data.db')
     cursor = conn.cursor()
-    
-    # 중복된 S/N 찾기
+
+    # 중복된 S/N + 서비스일자 찾기
     cursor.execute('''
-        SELECT serial_number, COUNT(*) as count
+        SELECT serial_number, service_date, COUNT(*) as count
         FROM q_data
-        GROUP BY serial_number
+        GROUP BY serial_number, service_date
         HAVING count > 1
         ORDER BY count DESC
     ''')
-    
+
     duplicates = cursor.fetchall()
     conn.close()
-    
+
     if duplicates:
         return jsonify({
             'success': True,
@@ -2702,7 +2702,8 @@ def check_qdata_duplicates():
             'duplicates': [
                 {
                     'serial_number': row[0],
-                    'count': row[1]
+                    'service_date': row[1],
+                    'count': row[2]
                 } for row in duplicates
             ]
         })
@@ -2715,17 +2716,17 @@ def check_qdata_duplicates():
 
 @app.route('/api/qdata/remove-duplicates', methods=['POST'])
 def remove_qdata_duplicates():
-    """Q-data 중복 제거 (serial_number 기준, 가장 최근 업로드만 유지)"""
+    """Q-data 중복 제거 (serial_number + service_date 기준, 가장 최근 업로드만 유지)"""
     conn = sqlite3.connect('voc_data.db')
     cursor = conn.cursor()
-    
-    # 중복 제거: S/N이 같은 경우 가장 최근 업로드만 유지
+
+    # 중복 제거: S/N + 서비스일자가 같은 경우 가장 최근 업로드만 유지
     cursor.execute('''
         DELETE FROM q_data
         WHERE id NOT IN (
             SELECT MAX(id)
             FROM q_data
-            GROUP BY serial_number
+            GROUP BY serial_number, service_date
         )
     ''')
     
