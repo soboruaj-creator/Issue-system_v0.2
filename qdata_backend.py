@@ -204,12 +204,29 @@ def init_qdata_table():
     """Q-data 테이블 초기화"""
     conn = sqlite3.connect('voc_database.db')
     cursor = conn.cursor()
-    
-    # SQL 파일 실행
-    with open('create_qdata_table.sql', 'r', encoding='utf-8') as f:
-        sql_script = f.read()
-        cursor.executescript(sql_script)
-    
+
+    cursor.executescript('''
+        CREATE TABLE IF NOT EXISTS q_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            service_date TEXT NOT NULL,
+            process_type TEXT,
+            repair_name TEXT,
+            repair_detail TEXT,
+            detail_content TEXT,
+            model_name TEXT NOT NULL,
+            serial_number TEXT,
+            log_id TEXT,
+            sw_before TEXT,
+            sw_after TEXT,
+            uploaded_date TEXT NOT NULL,
+            UNIQUE(serial_number, service_date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_q_data_model ON q_data(model_name);
+        CREATE INDEX IF NOT EXISTS idx_q_data_service_date ON q_data(service_date);
+        CREATE INDEX IF NOT EXISTS idx_q_data_repair_name ON q_data(repair_name);
+        CREATE INDEX IF NOT EXISTS idx_q_data_process_type ON q_data(process_type);
+    ''')
+
     conn.commit()
     conn.close()
 

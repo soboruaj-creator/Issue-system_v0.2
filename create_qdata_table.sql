@@ -7,13 +7,13 @@ CREATE TABLE IF NOT EXISTS q_data (
     repair_detail TEXT,                    -- Q열: 수리 세부 내용
     detail_content TEXT,                   -- T열: 상세내용
     model_name TEXT NOT NULL,              -- Z열: 모델명
-    serial_number TEXT,                    -- AD열: S/N (고유)
-    log_id TEXT,                           -- AR열: LOG ID (고유)
+    serial_number TEXT,                    -- AD열: S/N
+    log_id TEXT,                           -- AR열: LOG ID
     sw_before TEXT,                        -- BE열: 수리전 S/W
     sw_after TEXT,                         -- BF열: 수리 S/W
     uploaded_date TEXT NOT NULL,           -- 업로드 일시
-    
-    UNIQUE(serial_number, log_id)
+
+    UNIQUE(serial_number, service_date)
 );
 
 -- 인덱스 생성 (검색 성능 향상)
