@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
+import os
 from database import connect_to_mongo, close_mongo_connection
 from routers import upload, voc, statistics, memos, chipset, export, qdata
 
@@ -39,3 +42,16 @@ app.include_router(qdata.router)
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": "VOC Management API"}
+
+
+# 빌드된 Vue 프론트엔드 정적 파일 서빙
+_FRONTEND_DIST = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'dist')
+
+if os.path.exists(_FRONTEND_DIST):
+    _assets_dir = os.path.join(_FRONTEND_DIST, 'assets')
+    if os.path.exists(_assets_dir):
+        app.mount('/assets', StaticFiles(directory=_assets_dir), name='assets')
+
+    @app.get('/{full_path:path}')
+    async def serve_frontend(full_path: str):
+        return FileResponse(os.path.join(_FRONTEND_DIST, 'index.html'))

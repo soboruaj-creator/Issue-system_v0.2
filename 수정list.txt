@@ -1,28 +1,107 @@
-2월 12일 app.py 파일 동기화 완료
+# VOC 관리 시스템 - 실행 방법 (Docker 없이 Python 직접 실행)
 
+## 사전 요구사항
 
-# 1. 기존 구버전 제거
-sudo apt-get remove docker docker-engine docker.io containerd runc
+### 1. Python 3.12+
+```bash
+python --version  # 확인
+```
 
-# 2. 필요 패키지 설치
+### 2. Node.js 20+ (프론트엔드 빌드용)
+```bash
+node --version    # 확인
+npm --version     # 확인
+```
+
+### 3. MongoDB 설치 (로컬)
+
+#### Ubuntu / Debian
+```bash
+# MongoDB 공식 저장소 추가
+curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | \
+  sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor
+
+echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] \
+  https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | \
+  sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl gnupg
+sudo apt-get install -y mongodb-org
 
-# 3. Docker 공식 GPG 키 추가
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
-  sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
+# MongoDB 시작 및 자동 시작 등록
+sudo systemctl start mongod
+sudo systemctl enable mongod
+```
 
-# 4. Docker 저장소 추가
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+#### macOS (Homebrew)
+```bash
+brew tap mongodb/brew
+brew install mongodb-community@7.0
+brew services start mongodb-community@7.0
+```
 
-# 5. Docker 설치
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+#### Windows
+MongoDB 공식 사이트에서 설치 프로그램 다운로드:
+https://www.mongodb.com/try/download/community
 
-# 6. sudo 없이 사용하도록 설정 (선택)
-sudo usermod -aG docker $USER
-newgrp docker
+---
+
+## 실행 방법
+
+### 간단 실행 (권장)
+프로젝트 루트 디렉토리에서:
+```bash
+python start.py
+```
+→ pip 패키지 설치 → 프론트엔드 빌드 → 서버 시작 자동 처리
+→ 브라우저에서 http://localhost:8000 접속
+
+### 옵션
+```bash
+# 이미 패키지와 빌드가 완료된 경우 (빠른 재시작)
+python start.py --skip-install --skip-build
+
+# 빌드만 건너뛰기
+python start.py --skip-build
+
+# 개발 모드 (백엔드만, 프론트엔드는 별도 터미널에서 실행)
+python start.py --dev
+```
+
+### 개발 모드 (프론트엔드 핫리로드)
+터미널 1 (백엔드):
+```bash
+python start.py --dev
+```
+
+터미널 2 (프론트엔드):
+```bash
+cd frontend
+npm install
+npm run dev
+```
+→ 프론트엔드: http://localhost:3000
+
+---
+
+## 환경 변수 설정 (선택)
+backend/.env 파일 생성:
+```
+MONGODB_URL=mongodb://localhost:27017
+DATABASE_NAME=voc_system
+```
+
+---
+
+## 수동 실행
+```bash
+# 백엔드 패키지 설치
+pip install -r backend/requirements.txt
+
+# 프론트엔드 빌드
+cd frontend && npm install && npm run build && cd ..
+
+# 서버 실행
+cd backend
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```

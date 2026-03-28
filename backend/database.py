@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    mongodb_url: str = "mongodb://mongodb:27017"
+    mongodb_url: str = "mongodb://localhost:27017"
     database_name: str = "voc_system"
 
     class Config:
