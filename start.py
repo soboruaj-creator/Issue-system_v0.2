@@ -38,10 +38,18 @@ def install_backend_deps():
     print("  완료.")
 
 
+def get_npm():
+    """Windows에서는 npm.cmd, 그 외에는 npm 사용"""
+    if sys.platform == 'win32':
+        return shutil.which('npm.cmd') or shutil.which('npm')
+    return shutil.which('npm')
+
+
 def build_frontend():
     print("\n[2/3] 프론트엔드 빌드 중...")
 
-    if not shutil.which('npm'):
+    npm = get_npm()
+    if not npm:
         print("  경고: npm을 찾을 수 없습니다.")
         if os.path.exists(FRONTEND_DIST):
             print("  기존 빌드(frontend/dist)를 사용합니다.")
@@ -50,8 +58,8 @@ def build_frontend():
             print("  프론트엔드 없이 API 서버만 실행됩니다.")
         return
 
-    run_cmd(['npm', 'install'], cwd=FRONTEND_DIR)
-    run_cmd(['npm', 'run', 'build'], cwd=FRONTEND_DIR)
+    run_cmd([npm, 'install'], cwd=FRONTEND_DIR)
+    run_cmd([npm, 'run', 'build'], cwd=FRONTEND_DIR)
     print("  완료. (frontend/dist 생성됨)")
 
 
