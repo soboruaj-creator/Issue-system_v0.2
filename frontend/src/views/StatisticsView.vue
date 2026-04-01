@@ -84,7 +84,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in combinedMonthlyData" :key="item.month">
+          <tr v-for="item in [...combinedMonthlyData].reverse()" :key="item.month">
             <td>{{ item.month }}</td>
             <td><span class="badge voc">{{ item.voc_count }}</span></td>
             <td><span class="badge qdata">{{ item.qdata_count }}</span></td>
