@@ -179,3 +179,50 @@ async def upload_qdata(file: UploadFile = File(...)):
         "duplicate_count": duplicate_count,
         "error_count": error_count,
     }
+
+
+@router.post("/launch_dates")
+async def upload_launch_dates(file: UploadFile = File(...)):
+    """출시일 업로드 (A열: 모델명, B열: 출시일)"""
+    if not file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="엑셀 파일만 업로드 가능합니다.")
+
+    try:
+        df = await read_excel_with_drm(file)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    col = get_collection("launch_dates")
+    success_count = 0
+
+    for _, row in df.iterrows():
+        model_name = str(row.iloc[0]).strip()
+        if not model_name or model_name == "nan":
+            continue
+
+        launch_date_raw = row.iloc[1]
+
+        # 날짜 파싱 (datetime 객체 또는 문자열)
+        if hasattr(launch_date_raw, "strftime"):
+            launch_date_str = launch_date_raw.strftime("%Y-%m-%d")
+        elif isinstance(launch_date_raw, str):
+            launch_date_str = None
+            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d"):
+                try:
+                    launch_date_str = datetime.strptime(launch_date_raw.strip(), fmt).strftime("%Y-%m-%d")
+                    break
+                except ValueError:
+                    continue
+            if not launch_date_str:
+                continue
+        else:
+            continue
+
+        await col.update_one(
+            {"model_name": model_name},
+            {"$set": {"model_name": model_name, "launch_date": launch_date_str}},
+            upsert=True,
+        )
+        success_count += 1
+
+    return {"success": True, "message": f"{success_count}개 모델 출시일 등록 완료"}

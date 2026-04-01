@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import os
 from database import connect_to_mongo, close_mongo_connection
-from routers import upload, voc, statistics, memos, chipset, export, qdata
+from routers import upload, voc, statistics, memos, chipset, export, qdata, launch
 
 
 @asynccontextmanager
@@ -37,6 +37,7 @@ app.include_router(memos.router)
 app.include_router(chipset.router)
 app.include_router(export.router)
 app.include_router(qdata.router)
+app.include_router(launch.router)
 
 
 @app.get("/health")

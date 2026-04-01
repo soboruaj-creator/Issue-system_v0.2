@@ -8,6 +8,7 @@ const routes = [
   { path: '/voc', name: 'voc-list', component: () => import('../views/VocListView.vue') },
   { path: '/qdata', name: 'qdata', component: () => import('../views/QDataView.vue') },
   { path: '/settings', name: 'settings', component: () => import('../views/SettingsView.vue') },
+  { path: '/launch-compare', name: 'launch-compare', component: () => import('../views/LaunchCompareView.vue') },
 ]
 
 export default createRouter({

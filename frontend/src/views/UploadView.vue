@@ -72,6 +72,28 @@
         </div>
       </div>
 
+      <!-- 출시일 업로드 -->
+      <div class="card upload-card">
+        <h2>📅 출시일 업로드</h2>
+        <p class="desc">모델 출시일 엑셀 파일을 업로드합니다. (A열: 모델명, B열: 출시일)</p>
+        <div class="drop-zone" @dragover.prevent @drop.prevent="handleDrop($event, 'launch')"
+             :class="{ 'drag-over': dragging === 'launch' }"
+             @dragenter="dragging='launch'" @dragleave="dragging=null">
+          <input type="file" accept=".xlsx,.xls" @change="handleFile($event, 'launch')" ref="launchInput" class="hidden-input" />
+          <div class="drop-content" @click="$refs.launchInput.click()">
+            <span class="drop-icon">📂</span>
+            <p>클릭하거나 파일을 드래그하세요</p>
+            <p class="sub-text">{{ launchFile?.name || '파일 미선택' }}</p>
+          </div>
+        </div>
+        <button class="btn-upload" @click="upload('launch')" :disabled="!launchFile || launchLoading">
+          {{ launchLoading ? '업로드 중...' : '업로드' }}
+        </button>
+        <div v-if="launchResult" :class="['result', launchResult.success ? 'success' : 'error']">
+          {{ launchResult.message }}
+        </div>
+      </div>
+
       <!-- Q-data 업로드 -->
       <div class="card upload-card">
         <h2>📊 Q-data 업로드</h2>
@@ -99,7 +121,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { uploadVoc, uploadChipsetMapping, uploadAppKeywords, uploadQData } from '../api'
+import { uploadVoc, uploadChipsetMapping, uploadAppKeywords, uploadQData, uploadLaunchDates } from '../api'
 
 const dragging = ref(null)
 
@@ -107,6 +129,7 @@ const vocFile = ref(null), vocLoading = ref(false), vocResult = ref(null)
 const chipsetFile = ref(null), chipsetLoading = ref(false), chipsetResult = ref(null)
 const appFile = ref(null), appLoading = ref(false), appResult = ref(null)
 const qdataFile = ref(null), qdataLoading = ref(false), qdataResult = ref(null)
+const launchFile = ref(null), launchLoading = ref(false), launchResult = ref(null)
 
 function handleFile(e, type) {
   const file = e.target.files[0]
@@ -124,13 +147,15 @@ function setFile(type, file) {
   if (type === 'chipset') { chipsetFile.value = file; chipsetResult.value = null }
   if (type === 'app') { appFile.value = file; appResult.value = null }
   if (type === 'qdata') { qdataFile.value = file; qdataResult.value = null }
+  if (type === 'launch') { launchFile.value = file; launchResult.value = null }
 }
 
 async function upload(type) {
   const apis = { voc: [vocFile, vocLoading, vocResult, uploadVoc],
                  chipset: [chipsetFile, chipsetLoading, chipsetResult, uploadChipsetMapping],
                  app: [appFile, appLoading, appResult, uploadAppKeywords],
-                 qdata: [qdataFile, qdataLoading, qdataResult, uploadQData] }
+                 qdata: [qdataFile, qdataLoading, qdataResult, uploadQData],
+                 launch: [launchFile, launchLoading, launchResult, uploadLaunchDates] }
   const [fileRef, loadingRef, resultRef, apiFn] = apis[type]
 
   loadingRef.value = true

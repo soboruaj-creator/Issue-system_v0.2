@@ -101,3 +101,21 @@ export const exportQDataExcel = (params = {}) => {
 // ─── 초기화 ───────────────────────────────────────────────────────────────────
 
 export const resetVocData = () => api.post('/qdata/reset-all')
+
+// ─── Q-data 통계 (모델별 월별) ────────────────────────────────────────────────
+
+export const getQDataModelsMonthlyStats = (models) =>
+  api.post('/statistics/qdata/models/monthly', { models })
+
+// ─── 출시일/개통일 비교 ───────────────────────────────────────────────────────
+
+export const getLaunchModels = () => api.get('/launch/models')
+
+export const compareLaunchModels = (models) =>
+  api.get('/launch/compare', { params: { models: models.join(',') } })
+
+export const uploadLaunchDates = (file) => {
+  const form = new FormData()
+  form.append('file', file)
+  return api.post('/upload/launch_dates', form)
+}
