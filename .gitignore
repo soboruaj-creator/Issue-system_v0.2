@@ -15,7 +15,7 @@ uploads/
 
 # Node
 node_modules/
-frontend/dist/
+# frontend/dist/
 frontend/.vite/
 
 # Env
