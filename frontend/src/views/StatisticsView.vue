@@ -24,7 +24,7 @@
     <!-- 모델별: VOC + Q-data 나란히 -->
     <div v-if="activeTab === 'model' && !loading" class="side-by-side">
       <div class="card">
-        <h2 class="section-title">사내 VOC 모델별</h2>
+        <h2 class="section-title">Members issue 모델별</h2>
         <div class="chart-wrap">
           <Bar v-if="modelChartData" :data="modelChartData" :options="barOptions" />
         </div>
@@ -89,7 +89,7 @@
             <td>{{ item.month }}</td>
             <td><span class="badge voc">{{ item.voc_count }}</span></td>
             <td><span class="badge qdata">{{ item.qdata_count }}</span></td>
-            <td>
+            <td @click.stop>
               <span v-if="!editingMemo[item.month]" class="memo-text"
                     @click="startEdit(item.month, item.memo)">
                 {{ item.memo || '+ 메모 추가' }}
@@ -185,7 +185,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointEleme
 
 const router = useRouter()
 function goToMonthDetail(month) {
-  router.push(`/statistics/month/${month}`)
+  window.open(`/statistics/month/${month}`, '_blank')
 }
 
 const tabs = [
@@ -256,7 +256,7 @@ const combinedMonthlyChartData = computed(() => {
     labels: data.map(i => i.month),
     datasets: [
       {
-        label: '사내 VOC',
+        label: 'Members issue',
         data: data.map(i => i.voc_count),
         borderColor: '#1a237e', backgroundColor: 'rgba(26,35,126,0.1)',
         tension: 0.4, fill: false, pointRadius: 4,
