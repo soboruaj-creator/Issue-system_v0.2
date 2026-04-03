@@ -15,7 +15,7 @@ async def _get_marketing_map() -> dict:
     """Returns {model_name: marketing_name} for models that have a marketing name."""
     col = get_collection("launch_dates")
     docs = await col.find(
-        {"marketing_name": {"$exists": True, "$ne": None, "$ne": ""}},
+        {"marketing_name": {"$exists": True, "$nin": [None, ""]}},
         {"_id": 0, "model_name": 1, "marketing_name": 1},
     ).to_list(None)
     return {
