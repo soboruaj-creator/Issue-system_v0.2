@@ -25,12 +25,30 @@ async def _get_marketing_map() -> dict:
     }
 
 
+def _resolve_name(orig: str, mmap: dict) -> str:
+    """Resolve effective marketing name.
+    1) Exact match
+    2) SM- prefix: first 4 chars after 'SM-' must match (e.g. SM-L325N → SM-L325 key)
+    """
+    if not orig:
+        return orig
+    if orig in mmap:
+        return mmap[orig]
+    upper = orig.upper()
+    if upper.startswith("SM-") and len(orig) >= 7:
+        prefix = orig[:7]  # "SM-" + 4 chars
+        for key, val in mmap.items():
+            if key[:7] == prefix:
+                return val
+    return orig
+
+
 def _apply_marketing(items: list, mmap: dict) -> list:
     """Group model-level stats by effective name (marketing_name || model_name)."""
     merged: dict = {}
     for item in items:
         orig = item.get("model_name") or ""
-        eff = mmap.get(orig, orig) if orig else orig
+        eff = _resolve_name(orig, mmap)
         if not eff:
             continue
         if eff not in merged:
