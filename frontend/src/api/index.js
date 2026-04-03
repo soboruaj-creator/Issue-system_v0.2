@@ -124,6 +124,20 @@ export const getLaunchModels = () => api.get('/launch/models')
 export const compareLaunchModels = (models) =>
   api.get('/launch/compare', { params: { models: models.join(',') } })
 
+// ─── 모델 노트 ────────────────────────────────────────────────────────────────
+
+export const getModelNotes = (modelName) =>
+  api.get(`/model-notes/${encodeURIComponent(modelName)}`)
+
+export const createModelNote = (modelName, data) =>
+  api.post(`/model-notes/${encodeURIComponent(modelName)}`, data)
+
+export const updateModelNote = (noteId, data) =>
+  api.put(`/model-notes/${noteId}`, data)
+
+export const deleteModelNote = (noteId) =>
+  api.delete(`/model-notes/${noteId}`)
+
 export const uploadLaunchDates = (file) => {
   const form = new FormData()
   form.append('file', file)
