@@ -107,6 +107,16 @@ export const resetVocData = () => api.post('/qdata/reset-all')
 export const getQDataModelsMonthlyStats = (models) =>
   api.post('/statistics/qdata/models/monthly', { models })
 
+// ─── 마케팅명 통합 통계 ───────────────────────────────────────────────────────
+
+export const getEffectiveModels = () => api.get('/statistics/effective-models')
+
+export const getEffectiveNameMonthly = (name, params = {}) =>
+  api.get('/statistics/effective-name/monthly', { params: { name, ...params } })
+
+export const getMonthDetail = (month) =>
+  api.get(`/statistics/month-detail/${month}`)
+
 // ─── 출시일/개통일 비교 ───────────────────────────────────────────────────────
 
 export const getLaunchModels = () => api.get('/launch/models')

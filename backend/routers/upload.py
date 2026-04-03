@@ -218,9 +218,20 @@ async def upload_launch_dates(file: UploadFile = File(...)):
         else:
             continue
 
+        # C열 마케팅명 (선택)
+        marketing_name = None
+        if len(row) > 2:
+            raw = row.iloc[2]
+            if pd.notna(raw) and str(raw).strip() not in ("", "nan"):
+                marketing_name = str(raw).strip()
+
         await col.update_one(
             {"model_name": model_name},
-            {"$set": {"model_name": model_name, "launch_date": launch_date_str}},
+            {"$set": {
+                "model_name": model_name,
+                "launch_date": launch_date_str,
+                "marketing_name": marketing_name,
+            }},
             upsert=True,
         )
         success_count += 1
