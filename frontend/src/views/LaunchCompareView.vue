@@ -70,7 +70,7 @@
 
       <!-- VOC 차트 -->
       <div class="card">
-        <h2 class="section-title">사내 VOC - 개통일별 추이</h2>
+        <h2 class="section-title">Members issue - 개통일별 추이</h2>
         <div class="chart-wrap-lg">
           <Line v-if="vocChartData" :data="vocChartData" :options="lineOptions" />
         </div>

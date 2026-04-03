@@ -5,7 +5,7 @@
     <div class="upload-grid">
       <!-- VOC 업로드 -->
       <div class="card upload-card">
-        <h2>📄 사내 VOC 업로드</h2>
+        <h2>📄 Members issue 업로드</h2>
         <p class="desc">VOC 엑셀 파일(.xlsx/.xls)을 업로드합니다.</p>
         <div class="drop-zone" @dragover.prevent @drop.prevent="handleDrop($event, 'voc')"
              :class="{ 'drag-over': dragging === 'voc' }"

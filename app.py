@@ -169,7 +169,7 @@ def init_db():
     conn = sqlite3.connect('voc_data.db')
     c = conn.cursor()
     
-    # 사내 VOC 테이블
+    # Members issue 테이블
     c.execute('''CREATE TABLE IF NOT EXISTS internal_voc (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         case_code TEXT UNIQUE NOT NULL,
@@ -829,7 +829,7 @@ def process_voc_row(row, file_filename):
 
 @app.route('/api/upload/internal_voc', methods=['POST'])
 def upload_internal_voc():
-    """사내 VOC 엑셀 업로드"""
+    """Members issue 엑셀 업로드"""
     try:
         if 'file' not in request.files:
             return jsonify({'error': '파일이 없습니다.'}), 400

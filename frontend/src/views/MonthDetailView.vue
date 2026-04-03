@@ -2,7 +2,7 @@
   <div class="month-detail-view">
     <!-- 헤더 -->
     <div class="header-row">
-      <button class="btn-back" @click="router.back()">← 뒤로</button>
+      <button class="btn-back" @click="window.close()">✕ 닫기</button>
       <div class="month-nav">
         <button class="btn-nav" @click="goMonth(-1)">◀</button>
         <h1 class="page-title">{{ month }} 월별 상세</h1>
@@ -18,7 +18,7 @@
       <!-- 요약 카드 -->
       <div class="summary-cards">
         <div class="summary-card voc-card">
-          <div class="card-label">사내 VOC</div>
+          <div class="card-label">Members issue</div>
           <div class="card-value">{{ data.voc.total.toLocaleString() }}</div>
           <div class="card-diff" :class="diffClass(data.voc.total - data.voc.prev_total)">
             <span>{{ diffLabel(data.voc.total, data.voc.prev_total) }}</span>
@@ -46,7 +46,7 @@
       <div class="two-col">
         <!-- VOC 모델별 -->
         <div class="card">
-          <div class="section-title">사내 VOC 모델별</div>
+          <div class="section-title">Members issue 모델별</div>
           <div class="table-scroll">
             <table class="table">
               <thead>

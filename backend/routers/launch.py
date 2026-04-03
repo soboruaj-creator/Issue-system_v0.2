@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/launch", tags=["launch"])
 async def get_launch_models():
     """출시일이 등록된 모델 목록 반환"""
     col = get_collection("launch_dates")
-    docs = await col.find({}, {"_id": 0, "model_name": 1, "launch_date": 1}).to_list(None)
+    docs = await col.find({}, {"_id": 0, "model_name": 1, "launch_date": 1, "marketing_name": 1}).to_list(None)
     return sorted(docs, key=lambda x: x["model_name"])
 
 
