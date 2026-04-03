@@ -6,23 +6,46 @@ from database import get_collection
 router = APIRouter(prefix="/api/launch", tags=["launch"])
 
 
+def _build_eff_map(docs: list) -> dict:
+    """Returns {effective_name: [doc, ...]} grouping by marketing_name || model_name."""
+    eff_map: dict = {}
+    for doc in docs:
+        eff = (doc.get("marketing_name") or "").strip() or doc["model_name"]
+        if eff not in eff_map:
+            eff_map[eff] = []
+        eff_map[eff].append(doc)
+    return eff_map
+
+
 @router.get("/models")
 async def get_launch_models():
-    """출시일이 등록된 모델 목록 반환"""
+    """마케팅명으로 그룹핑된 모델 목록 반환"""
     col = get_collection("launch_dates")
-    docs = await col.find({}, {"_id": 0, "model_name": 1, "launch_date": 1, "marketing_name": 1}).to_list(None)
-    return sorted(docs, key=lambda x: x["model_name"])
+    docs = await col.find(
+        {}, {"_id": 0, "model_name": 1, "launch_date": 1, "marketing_name": 1}
+    ).to_list(None)
+
+    eff_map = _build_eff_map(docs)
+    result = []
+    for eff_name, group in eff_map.items():
+        earliest_date = min(d["launch_date"] for d in group)
+        result.append({
+            "effective_name": eff_name,
+            "model_names": [d["model_name"] for d in group],
+            "launch_date": earliest_date,
+        })
+    return sorted(result, key=lambda x: x["effective_name"])
 
 
 @router.get("/compare")
 async def compare_by_activation_day(models: str = Query(...)):
     """
-    여러 모델의 개통일별 VOC/Q-data 건수 비교
-    models: 쉼표로 구분된 모델명 (예: "ModelA,ModelB")
+    여러 그룹(마케팅명)의 개통일별 VOC/Q-data 건수 비교
+    models: 쉼표로 구분된 effective_name (마케팅명 또는 모델명)
     기준 모델(첫 번째)의 현재 개통일 수를 기준으로 비교
     """
-    model_names = [m.strip() for m in models.split(",") if m.strip()]
-    if not model_names:
+    eff_names = [m.strip() for m in models.split(",") if m.strip()]
+    if not eff_names:
         return []
 
     launch_col = get_collection("launch_dates")
@@ -30,44 +53,51 @@ async def compare_by_activation_day(models: str = Query(...)):
     qdata_col = get_collection("q_data")
     today = date.today()
 
-    # 기준 모델(첫 번째)의 최대 개통일 수 계산
-    ref_launch_doc = await launch_col.find_one({"model_name": model_names[0]})
-    if not ref_launch_doc:
-        return [{"model_name": model_names[0], "error": "출시일 미등록"}]
+    all_docs = await launch_col.find(
+        {}, {"_id": 0, "model_name": 1, "launch_date": 1, "marketing_name": 1}
+    ).to_list(None)
+    eff_map = _build_eff_map(all_docs)
+
+    # 기준: 첫 번째 그룹의 가장 이른 출시일 → max_days 산출
+    first_group = eff_map.get(eff_names[0])
+    if not first_group:
+        return [{"model_name": eff_names[0], "display_name": eff_names[0], "error": "출시일 미등록"}]
 
     try:
-        ref_launch = datetime.strptime(ref_launch_doc["launch_date"], "%Y-%m-%d").date()
+        ref_launch = datetime.strptime(
+            min(d["launch_date"] for d in first_group), "%Y-%m-%d"
+        ).date()
         max_days = (today - ref_launch).days + 1
     except Exception:
-        return [{"model_name": model_names[0], "error": "출시일 형식 오류"}]
+        return [{"model_name": eff_names[0], "display_name": eff_names[0], "error": "출시일 형식 오류"}]
 
     if max_days <= 0:
-        return [{"model_name": model_names[0], "error": "출시일이 미래입니다"}]
+        return [{"model_name": eff_names[0], "display_name": eff_names[0], "error": "출시일이 미래입니다"}]
 
     result = []
 
-    for model_name in model_names:
-        launch_doc = await launch_col.find_one({"model_name": model_name})
-        if not launch_doc:
-            result.append({"model_name": model_name, "error": "출시일 미등록"})
+    for eff_name in eff_names:
+        group_docs = eff_map.get(eff_name)
+        if not group_docs:
+            result.append({"model_name": eff_name, "display_name": eff_name, "error": "출시일 미등록"})
             continue
 
         try:
-            launch_date = datetime.strptime(launch_doc["launch_date"], "%Y-%m-%d").date()
+            launch_date = datetime.strptime(
+                min(d["launch_date"] for d in group_docs), "%Y-%m-%d"
+            ).date()
         except Exception:
-            result.append({"model_name": model_name, "error": "출시일 형식 오류"})
+            result.append({"model_name": eff_name, "display_name": eff_name, "error": "출시일 형식 오류"})
             continue
 
-        # 이 모델의 max_days 범위 날짜
-        range_start = launch_date
-        range_end = launch_date + timedelta(days=max_days - 1)
-        range_start_str = range_start.strftime("%Y-%m-%d")
-        range_end_str = range_end.strftime("%Y-%m-%d")
+        model_names_in_group = [d["model_name"] for d in group_docs]
+        range_start_str = launch_date.strftime("%Y-%m-%d")
+        range_end_str = (launch_date + timedelta(days=max_days - 1)).strftime("%Y-%m-%d")
 
-        # VOC 날짜별 집계
+        # VOC 날짜별 집계 (그룹 내 모든 모델 합산)
         voc_pipeline = [
             {"$match": {
-                "model_name": model_name,
+                "model_name": {"$in": model_names_in_group},
                 "created_date": {"$gte": range_start_str, "$lte": range_end_str + "~"},
             }},
             {"$project": {"date_str": {"$substr": ["$created_date", 0, 10]}}},
@@ -76,10 +106,10 @@ async def compare_by_activation_day(models: str = Query(...)):
         voc_docs = await voc_col.aggregate(voc_pipeline).to_list(None)
         voc_by_date = {d["_id"]: d["count"] for d in voc_docs}
 
-        # Q-data 날짜별 집계
+        # Q-data 날짜별 집계 (그룹 내 모든 모델 합산)
         qdata_pipeline = [
             {"$match": {
-                "model_name": model_name,
+                "model_name": {"$in": model_names_in_group},
                 "service_date": {"$gte": range_start_str, "$lte": range_end_str},
             }},
             {"$group": {"_id": "$service_date", "count": {"$sum": 1}}},
@@ -99,10 +129,11 @@ async def compare_by_activation_day(models: str = Query(...)):
             })
 
         result.append({
-            "model_name": model_name,
-            "display_name": launch_doc.get("marketing_name") or model_name,
-            "launch_date": launch_doc["launch_date"],
-            "max_days": max_days,
+            "model_name": eff_name,
+            "display_name": eff_name,
+            "launch_date": launch_date.strftime("%Y-%m-%d"),
+            "max_days": (today - launch_date).days + 1,
+            "model_names": model_names_in_group,
             "daily_data": daily_data,
         })
 
