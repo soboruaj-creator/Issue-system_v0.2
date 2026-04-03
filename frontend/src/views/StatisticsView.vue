@@ -84,7 +84,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in [...combinedMonthlyData].reverse()" :key="item.month">
+          <tr v-for="item in [...combinedMonthlyData].reverse()" :key="item.month"
+              class="clickable-row" @click="goToMonthDetail(item.month)">
             <td>{{ item.month }}</td>
             <td><span class="badge voc">{{ item.voc_count }}</span></td>
             <td><span class="badge qdata">{{ item.qdata_count }}</span></td>
@@ -172,6 +173,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Bar, Line, Doughnut } from 'vue-chartjs'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement,
@@ -180,6 +182,11 @@ import {
 import * as api from '../api'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend)
+
+const router = useRouter()
+function goToMonthDetail(month) {
+  router.push(`/statistics/month/${month}`)
+}
 
 const tabs = [
   { key: 'model', label: '모델별' },
@@ -288,15 +295,8 @@ const doughnutOptions = { responsive: true, plugins: { legend: { position: 'righ
 
 async function loadAllModels() {
   try {
-    const [vocRes, qdataRes] = await Promise.all([
-      api.getModelStats({}),
-      api.getQDataModelStats({}),
-    ])
-    const combined = new Set([
-      ...vocRes.data.map(i => i.model_name),
-      ...qdataRes.data.map(i => i.model_name),
-    ])
-    allModels.value = [...combined].sort()
+    const res = await api.getEffectiveModels()
+    allModels.value = res.data
   } catch (e) {
     console.error(e)
   }
@@ -323,14 +323,9 @@ async function loadStats() {
       if (!allModels.value.length) await loadAllModels()
 
       if (selectedModel.value) {
-        const [vocRes, qdataRes] = await Promise.all([
-          api.getModelMonthlyStats(selectedModel.value),
-          api.getQDataModelsMonthlyStats([selectedModel.value]),
-        ])
-        monthlyStats.value = vocRes.data.monthly || []
-        qdataMonthlyStats.value = qdataRes.data
-          .filter(i => i.model_name === selectedModel.value)
-          .map(i => ({ month: i.month, count: i.count }))
+        const res = await api.getEffectiveNameMonthly(selectedModel.value, params)
+        monthlyStats.value = res.data.voc_monthly || []
+        qdataMonthlyStats.value = res.data.qdata_monthly || []
       } else {
         const [vocRes, qdataRes] = await Promise.all([
           api.getMonthlyStats(params),
@@ -407,6 +402,8 @@ async function saveMemo(type, key) {
 .memo-edit { display: flex; gap: 6px; align-items: center; }
 .memo-edit input { padding: 4px 8px; border: 1px solid #c5cae9; border-radius: 4px; font-size: 0.85rem; }
 .memo-edit button { padding: 4px 10px; background: #1a237e; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+.clickable-row { cursor: pointer; }
+.clickable-row:hover { background: #f0f2ff; }
 .monthly-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
 .monthly-header .section-title { margin-bottom: 0; }
 .model-filter { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }

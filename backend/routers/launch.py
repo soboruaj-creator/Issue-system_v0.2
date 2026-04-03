@@ -100,6 +100,7 @@ async def compare_by_activation_day(models: str = Query(...)):
 
         result.append({
             "model_name": model_name,
+            "display_name": launch_doc.get("marketing_name") or model_name,
             "launch_date": launch_doc["launch_date"],
             "max_days": max_days,
             "daily_data": daily_data,

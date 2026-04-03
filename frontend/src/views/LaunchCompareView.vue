@@ -13,12 +13,30 @@
           <span class="model-label" :style="{ color: MODEL_COLORS[idx] }">
             모델 {{ idx === 0 ? 'A (기준)' : String.fromCharCode(65 + idx) }}
           </span>
-          <select v-model="selectedModels[idx]" class="model-select">
-            <option value="">-- 모델 선택 --</option>
-            <option v-for="m in launchModels" :key="m.model_name" :value="m.model_name">
-              {{ m.model_name }} (출시일: {{ m.launch_date }})
-            </option>
-          </select>
+          <div class="search-wrap" ref="searchWraps">
+            <input
+              type="text"
+              class="model-input"
+              :value="getDisplayName(selectedModels[idx])"
+              @input="onInput(idx, $event.target.value)"
+              @focus="openDropdown(idx)"
+              @blur="onBlur(idx)"
+              :placeholder="'모델명 또는 마케팅명 검색...'"
+              autocomplete="off"
+            />
+            <div v-if="openIdx === idx && filteredModels(idx).length" class="dropdown">
+              <div
+                v-for="m in filteredModels(idx)"
+                :key="m.model_name"
+                class="dropdown-item"
+                @mousedown.prevent="selectModel(idx, m)"
+              >
+                <span class="d-name">{{ m.display_name }}</span>
+                <span class="d-model" v-if="m.display_name !== m.model_name">{{ m.model_name }}</span>
+                <span class="d-date">{{ m.launch_date }}</span>
+              </div>
+            </div>
+          </div>
           <button v-if="idx > 1" class="btn-remove" @click="removeModel(idx)">✕</button>
         </div>
       </div>
@@ -45,7 +63,7 @@
         <span v-for="r in compareResult" :key="r.model_name" class="info-chip"
               :style="{ borderColor: MODEL_COLORS[compareResult.indexOf(r)] }">
           <span class="dot" :style="{ background: MODEL_COLORS[compareResult.indexOf(r)] }"></span>
-          <strong>{{ r.model_name }}</strong>
+          <strong>{{ r.display_name }}</strong>
           출시일 {{ r.launch_date }} · 개통 {{ r.max_days }}일차
         </span>
       </div>
@@ -78,11 +96,11 @@
                 <template v-for="r in compareResult" :key="r.model_name">
                   <th>
                     <span class="legend-dot" :style="{ background: MODEL_COLORS[compareResult.indexOf(r)] }"></span>
-                    {{ r.model_name }} VOC
+                    {{ r.display_name }} VOC
                   </th>
                   <th>
                     <span class="legend-dot" :style="{ background: MODEL_COLORS[compareResult.indexOf(r)] }"></span>
-                    {{ r.model_name }} Q-data
+                    {{ r.display_name }} Q-data
                   </th>
                 </template>
               </tr>
@@ -130,9 +148,15 @@ ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Title, T
 const MODEL_COLORS = ['#1a237e', '#1b5e20', '#b71c1c', '#f57f17', '#4a148c']
 const MODEL_COLORS_ALPHA = ['rgba(26,35,126,0.15)', 'rgba(27,94,32,0.15)', 'rgba(183,28,28,0.15)', 'rgba(245,127,23,0.15)', 'rgba(74,20,140,0.15)']
 
+// launchModels: [{model_name, launch_date, marketing_name}]
+// We add display_name = marketing_name || model_name
 const launchModels = ref([])
 const loadingModels = ref(false)
+// selectedModels stores model_name (actual)
 const selectedModels = ref(['', ''])
+// search query per slot
+const searchQueries = ref(['', ''])
+const openIdx = ref(null)
 const compareResult = ref([])
 const loading = ref(false)
 
@@ -140,11 +164,55 @@ const canCompare = computed(() =>
   selectedModels.value.filter(m => m).length >= 2
 )
 
+function getDisplayName(modelName) {
+  if (!modelName) return searchQueries.value[selectedModels.value.indexOf(modelName)] || ''
+  const m = launchModels.value.find(x => x.model_name === modelName)
+  return m ? m.display_name : modelName
+}
+
+function filteredModels(idx) {
+  const q = (searchQueries.value[idx] || '').toLowerCase()
+  if (!q) return launchModels.value
+  return launchModels.value.filter(m =>
+    m.model_name.toLowerCase().includes(q) ||
+    m.display_name.toLowerCase().includes(q)
+  )
+}
+
+function onInput(idx, val) {
+  searchQueries.value[idx] = val
+  selectedModels.value[idx] = ''
+  openIdx.value = idx
+}
+
+function openDropdown(idx) {
+  searchQueries.value[idx] = ''
+  openIdx.value = idx
+}
+
+function onBlur(idx) {
+  // Delay to allow mousedown on dropdown item
+  setTimeout(() => {
+    if (openIdx.value === idx) openIdx.value = null
+    // If nothing selected, clear query
+    if (!selectedModels.value[idx]) searchQueries.value[idx] = ''
+  }, 200)
+}
+
+function selectModel(idx, m) {
+  selectedModels.value[idx] = m.model_name
+  searchQueries.value[idx] = m.display_name
+  openIdx.value = null
+}
+
 async function loadLaunchModels() {
   loadingModels.value = true
   try {
     const res = await getLaunchModels()
-    launchModels.value = res.data
+    launchModels.value = res.data.map(m => ({
+      ...m,
+      display_name: (m.marketing_name && m.marketing_name.trim()) ? m.marketing_name : m.model_name,
+    }))
   } catch (e) {
     console.error(e)
   } finally {
@@ -153,11 +221,15 @@ async function loadLaunchModels() {
 }
 
 function addModel() {
-  if (selectedModels.value.length < 5) selectedModels.value.push('')
+  if (selectedModels.value.length < 5) {
+    selectedModels.value.push('')
+    searchQueries.value.push('')
+  }
 }
 
 function removeModel(idx) {
   selectedModels.value.splice(idx, 1)
+  searchQueries.value.splice(idx, 1)
 }
 
 async function compare() {
@@ -186,7 +258,7 @@ const vocChartData = computed(() => {
   return {
     labels: refData.map(d => `${d.day}일`),
     datasets: compareResult.value.map((r, idx) => ({
-      label: r.model_name,
+      label: r.display_name,
       data: r.daily_data.map(d => d.voc_count),
       borderColor: MODEL_COLORS[idx],
       backgroundColor: MODEL_COLORS_ALPHA[idx],
@@ -202,7 +274,7 @@ const qdataChartData = computed(() => {
   return {
     labels: refData.map(d => `${d.day}일`),
     datasets: compareResult.value.map((r, idx) => ({
-      label: r.model_name,
+      label: r.display_name,
       data: r.daily_data.map(d => d.qdata_count),
       borderColor: MODEL_COLORS[idx],
       backgroundColor: MODEL_COLORS_ALPHA[idx],
@@ -246,7 +318,15 @@ onMounted(() => loadLaunchModels())
 .model-rows { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
 .model-row { display: flex; align-items: center; gap: 10px; }
 .model-label { font-size: 0.85rem; font-weight: 600; min-width: 90px; }
-.model-select { flex: 1; padding: 8px 10px; border: 1px solid #c5cae9; border-radius: 6px; font-size: 0.9rem; max-width: 400px; }
+.search-wrap { position: relative; flex: 1; max-width: 420px; }
+.model-input { width: 100%; padding: 8px 10px; border: 1px solid #c5cae9; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box; }
+.model-input:focus { outline: none; border-color: #3f51b5; box-shadow: 0 0 0 2px rgba(63,81,181,0.15); }
+.dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1px solid #c5cae9; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); z-index: 100; max-height: 240px; overflow-y: auto; }
+.dropdown-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; font-size: 0.88rem; }
+.dropdown-item:hover { background: #e8eaf6; }
+.d-name { font-weight: 600; color: #1a237e; }
+.d-model { color: #888; font-size: 0.8rem; }
+.d-date { margin-left: auto; color: #aaa; font-size: 0.8rem; white-space: nowrap; }
 .btn-remove { padding: 4px 10px; background: #fce4ec; color: #b71c1c; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
 .btn-row { display: flex; gap: 10px; align-items: center; }
 .btn-add { padding: 8px 16px; background: #e8eaf6; color: #1a237e; border: 1px solid #c5cae9; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
