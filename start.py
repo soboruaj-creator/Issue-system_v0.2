@@ -71,20 +71,20 @@ def start_server(dev_mode=False):
 
     if dev_mode:
         print("  [개발 모드] 백엔드만 실행 (프론트엔드: cd frontend && npm run dev)")
-        print("  백엔드: http://localhost:8000")
-        print("  API 문서: http://localhost:8000/docs")
+        print("  백엔드: http://localhost:8001")
+        print("  API 문서: http://localhost:8001/docs")
     else:
         if os.path.exists(FRONTEND_DIST):
-            print("  접속 주소: http://localhost:8000  (프론트엔드 + API 통합)")
+            print("  접속 주소: http://localhost:8001  (프론트엔드 + API 통합)")
         else:
-            print("  접속 주소: http://localhost:8000  (API 서버만)")
-        print("  API 문서: http://localhost:8000/docs")
+            print("  접속 주소: http://localhost:8001  (API 서버만)")
+        print("  API 문서: http://localhost:8001/docs")
 
     print("  종료: Ctrl+C\n")
 
     run_cmd([
         sys.executable, '-m', 'uvicorn', 'main:app',
-        '--host', '0.0.0.0', '--port', '8000', '--reload'
+        '--host', '0.0.0.0', '--port', '8001', '--reload'
     ], cwd=BACKEND_DIR)
 
 
