@@ -290,7 +290,21 @@ const appChartData = computed(() => appStats.value.length ? {
 
 const barOptions = { responsive: true, plugins: { legend: { display: false } } }
 const lineOptions = { responsive: true, plugins: { legend: { display: false } } }
-const lineOptionsLegend = { responsive: true, plugins: { legend: { display: true, position: 'top' } } }
+const lineOptionsLegend = computed(() => ({
+  responsive: true,
+  plugins: {
+    legend: { display: true, position: 'top' },
+    tooltip: {
+      callbacks: {
+        footer(items) {
+          const idx = items[0]?.dataIndex
+          const memo = combinedMonthlyData.value[idx]?.memo
+          return memo ? `📝 ${memo}` : ''
+        },
+      },
+    },
+  },
+}))
 const doughnutOptions = { responsive: true, plugins: { legend: { position: 'right' } } }
 
 async function loadAllModels() {
