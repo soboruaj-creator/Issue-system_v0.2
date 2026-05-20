@@ -33,7 +33,7 @@
           <tbody>
             <tr v-for="(item, idx) in modelStats" :key="item.model_name">
               <td>{{ idx + 1 }}</td>
-              <td class="model-link" @click="goToModel(item.model_name)">{{ item.model_name }}</td>
+              <td>{{ item.model_name }}</td>
               <td><span class="badge voc">{{ item.count }}</span></td>
               <td>{{ totalModel ? (item.count / totalModel * 100).toFixed(1) : 0 }}%</td>
             </tr>
@@ -50,7 +50,7 @@
           <tbody>
             <tr v-for="(item, idx) in qdataModelStats" :key="item.model_name">
               <td>{{ idx + 1 }}</td>
-              <td class="model-link" @click="goToModel(item.model_name)">{{ item.model_name }}</td>
+              <td>{{ item.model_name }}</td>
               <td><span class="badge qdata">{{ item.count }}</span></td>
               <td>{{ totalQdataModel ? (item.count / totalQdataModel * 100).toFixed(1) : 0 }}%</td>
             </tr>
@@ -188,10 +188,6 @@ function goToMonthDetail(month) {
   window.open(`/statistics/month/${month}`, '_blank')
 }
 
-function goToModel(name) {
-  window.open(`/statistics/model/${encodeURIComponent(name)}`, '_blank')
-}
-
 const tabs = [
   { key: 'model', label: '모델별' },
   { key: 'monthly', label: '월별' },
@@ -294,7 +290,21 @@ const appChartData = computed(() => appStats.value.length ? {
 
 const barOptions = { responsive: true, plugins: { legend: { display: false } } }
 const lineOptions = { responsive: true, plugins: { legend: { display: false } } }
-const lineOptionsLegend = { responsive: true, plugins: { legend: { display: true, position: 'top' } } }
+const lineOptionsLegend = computed(() => ({
+  responsive: true,
+  plugins: {
+    legend: { display: true, position: 'top' },
+    tooltip: {
+      callbacks: {
+        footer(items) {
+          const idx = items[0]?.dataIndex
+          const memo = combinedMonthlyData.value[idx]?.memo
+          return memo ? `📝 ${memo}` : ''
+        },
+      },
+    },
+  },
+}))
 const doughnutOptions = { responsive: true, plugins: { legend: { position: 'right' } } }
 
 async function loadAllModels() {
@@ -408,8 +418,6 @@ async function saveMemo(type, key) {
 .memo-edit button { padding: 4px 10px; background: #1a237e; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
 .clickable-row { cursor: pointer; }
 .clickable-row:hover { background: #f0f2ff; }
-.model-link { cursor: pointer; color: #1a237e; text-decoration: underline; }
-.model-link:hover { color: #3f51b5; }
 .monthly-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
 .monthly-header .section-title { margin-bottom: 0; }
 .model-filter { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
