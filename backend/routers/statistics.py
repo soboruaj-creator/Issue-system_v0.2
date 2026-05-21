@@ -1,5 +1,6 @@
 """통계 라우터"""
 import asyncio
+import re
 import calendar as cal
 from fastapi import APIRouter, Query
 from typing import Optional, List
@@ -62,28 +63,145 @@ def _date_filter(start_date: Optional[str], end_date: Optional[str]) -> dict:
     return {}
 
 
+def _extract_summary(problem, original_content, reproduction) -> str:
+    """M열(problem) 또는 N열(original_content/reproduction)에서 요약 추출"""
+    if problem:
+        m = re.search(r'내용\s*:\s*(.+)', str(problem), re.DOTALL)
+        if m:
+            return re.sub(r'\s+', ' ', m.group(1)).strip()[:160]
+    if original_content:
+        text = re.sub(r'[Qq]ueti?on_?[Tt]ime.*', '', str(original_content), flags=re.DOTALL)
+        text = re.sub(r'\s+', ' ', text).strip()
+        if text:
+            return text[:160]
+    if reproduction:
+        text = re.sub(r'\[[^\]]+\]\s*', '', str(reproduction))
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text[:160]
+    return ""
+
+
 @router.get("/dashboard")
 async def get_dashboard():
-    col = get_collection("internal_voc")
-    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    voc_col = get_collection("internal_voc")
+    qdata_col = get_collection("q_data")
 
-    total = await col.count_documents({})
-    daily_count = await col.count_documents({"created_date": {"$regex": f"^{yesterday}"}})
+    today_dt = datetime.now().date()
+    yesterday = today_dt - timedelta(days=1)
+    yest_str = yesterday.strftime("%Y-%m-%d")
 
-    pipeline = [
-        {"$match": {"created_date": {"$regex": f"^{yesterday}"}, "model_name": {"$ne": None}}},
-        {"$group": {"_id": "$model_name", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}},
-        {"$limit": 10},
-        {"$project": {"model_name": "$_id", "count": 1, "_id": 0}},
+    # WoW 비교: 최근 7일 vs 이전 7일
+    d7_start = (yesterday - timedelta(days=6)).strftime("%Y-%m-%d")
+    d7_prev_start = (yesterday - timedelta(days=13)).strftime("%Y-%m-%d")
+    d7_prev_end = (yesterday - timedelta(days=7)).strftime("%Y-%m-%d")
+    # 이상탐지 기준: 어제 기준 7일 평균
+    anomaly_start = (yesterday - timedelta(days=7)).strftime("%Y-%m-%d")
+    anomaly_end = (yesterday - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # 4주 추이 (월~일 기준)
+    monday = today_dt - timedelta(days=today_dt.weekday())
+    week_ranges, week_labels = [], []
+    for i in range(3, -1, -1):
+        ws = monday - timedelta(weeks=i)
+        we = ws + timedelta(days=6)
+        week_ranges.append((ws.strftime("%Y-%m-%d"), we.strftime("%Y-%m-%d")))
+        week_labels.append("이번주" if i == 0 else "지난주" if i == 1 else f"{i+1}주전")
+
+    # 모든 쿼리 병렬 실행
+    results = await asyncio.gather(
+        qdata_col.aggregate([
+            {"$match": {"service_date": yest_str}},
+            {"$group": {"_id": "$model_name", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}, {"$limit": 5},
+            {"$project": {"model_name": "$_id", "count": 1, "_id": 0}},
+        ]).to_list(None),
+        qdata_col.aggregate([
+            {"$match": {"service_date": {"$gte": d7_start, "$lte": yest_str}}},
+            {"$group": {"_id": "$model_name", "count": {"$sum": 1}}},
+        ]).to_list(None),
+        qdata_col.aggregate([
+            {"$match": {"service_date": {"$gte": d7_prev_start, "$lte": d7_prev_end}}},
+            {"$group": {"_id": "$model_name", "count": {"$sum": 1}}},
+        ]).to_list(None),
+        voc_col.find(
+            {"created_date": {"$regex": f"^{yest_str}"}},
+            {"_id": 0, "case_code": 1, "model_name": 1, "problem": 1,
+             "original_content": 1, "reproduction_path": 1},
+        ).sort("model_name", 1).to_list(200),
+        voc_col.aggregate([
+            {"$match": {"created_date": {"$gte": anomaly_start, "$lte": anomaly_end + "~"}}},
+            {"$group": {"_id": "$model_name", "count": {"$sum": 1}}},
+        ]).to_list(None),
+        qdata_col.count_documents({"service_date": yest_str}),
+        *[voc_col.count_documents({"created_date": {"$gte": ws, "$lte": we + "~"}}) for ws, we in week_ranges],
+        *[qdata_col.count_documents({"service_date": {"$gte": ws, "$lte": we}}) for ws, we in week_ranges],
+        voc_col.find_one({}, sort=[("uploaded_date", -1)], projection={"uploaded_date": 1, "_id": 0}),
+        qdata_col.find_one({}, sort=[("uploaded_date", -1)], projection={"uploaded_date": 1, "_id": 0}),
+    )
+
+    (qdata_top5, qdata_this_w, qdata_prev_w, voc_yest_docs, voc_7d_docs,
+     qdata_yest_count, *rest) = results
+    trend_voc = rest[:4]
+    trend_qdata = rest[4:8]
+    voc_last_doc, qdata_last_doc = rest[8], rest[9]
+
+    # Members issue 어제 리스트 + 요약
+    voc_entries = [
+        {
+            "case_code": d.get("case_code"),
+            "model_name": d.get("model_name") or "-",
+            "summary": _extract_summary(d.get("problem"), d.get("original_content"), d.get("reproduction_path")),
+        }
+        for d in voc_yest_docs
     ]
-    top10 = await col.aggregate(pipeline).to_list(None)
+
+    # 이상 탐지
+    yest_model_map: dict = {}
+    for d in voc_yest_docs:
+        m = d.get("model_name") or "미분류"
+        yest_model_map[m] = yest_model_map.get(m, 0) + 1
+    d7_avg_map = {d["_id"]: d["count"] / 7.0 for d in voc_7d_docs if d["_id"]}
+    anomalies = []
+    for model, ycount in yest_model_map.items():
+        avg = d7_avg_map.get(model, 0)
+        if (avg > 0 and ycount >= avg * 2 and ycount >= 2) or (avg == 0 and ycount >= 5):
+            anomalies.append({
+                "model_name": model,
+                "yesterday_count": ycount,
+                "avg_7d": round(avg, 1),
+                "ratio": round(ycount / avg, 1) if avg > 0 else None,
+            })
+    anomalies.sort(key=lambda x: x["yesterday_count"], reverse=True)
+
+    # Q-data WoW Top5
+    this_map = {d["_id"]: d["count"] for d in qdata_this_w if d["_id"]}
+    prev_map = {d["_id"]: d["count"] for d in qdata_prev_w if d["_id"]}
+    wow = sorted(
+        [{"model_name": m, "this_week": c, "last_week": prev_map.get(m, 0), "diff": c - prev_map.get(m, 0)}
+         for m, c in this_map.items() if c - prev_map.get(m, 0) > 0],
+        key=lambda x: x["diff"], reverse=True
+    )[:5]
 
     return {
-        "yesterday_date": yesterday,
-        "total_count": total,
-        "daily_count": daily_count,
-        "top10_models": top10,
+        "yesterday": yest_str,
+        "members_issue": {
+            "yesterday_count": len(voc_entries),
+            "entries": voc_entries,
+            "anomaly": anomalies[:5],
+        },
+        "qdata": {
+            "yesterday_count": qdata_yest_count,
+            "top5_yesterday": qdata_top5,
+            "top5_wow": wow,
+        },
+        "weekly_trend": [
+            {"label": lbl, "week_start": ws, "members_issue": vc, "qdata": qc}
+            for lbl, (ws, _), vc, qc in zip(week_labels, week_ranges, trend_voc, trend_qdata)
+        ],
+        "upload_status": {
+            "members_issue": voc_last_doc.get("uploaded_date") if voc_last_doc else None,
+            "qdata": qdata_last_doc.get("uploaded_date") if qdata_last_doc else None,
+        },
     }
 
 
