@@ -389,12 +389,12 @@ async function loadStats() {
       }
 
     } else if (tab === 'weekly') {
-      const [vocRes, qdataRes] = await Promise.all([
+      const [vocResult, qdataResult] = await Promise.allSettled([
         api.getWeeklyStats(params),
         api.getQDataWeeklyStats(params),
       ])
-      weeklyStats.value = vocRes.data
-      qdataWeeklyStats.value = qdataRes.data
+      if (vocResult.status === 'fulfilled') weeklyStats.value = vocResult.value.data
+      if (qdataResult.status === 'fulfilled') qdataWeeklyStats.value = qdataResult.value.data
     } else if (tab === 'chipset') {
       chipsetStats.value = (await api.getChipsetStats(params)).data
     } else if (tab === 'app') {
