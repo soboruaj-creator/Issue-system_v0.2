@@ -117,6 +117,24 @@ async def compare_by_activation_day(models: str = Query(...)):
         qdata_docs = await qdata_col.aggregate(qdata_pipeline).to_list(None)
         qdata_by_date = {d["_id"]: d["count"] for d in qdata_docs}
 
+        # PPM 개통일차별 조회
+        ppm_col = get_collection("ppm_data")
+        ppm_docs = await ppm_col.find(
+            {"model_name": {"$in": model_names_in_group}},
+            {"_id": 0, "activation_day": 1, "ppm": 1, "upload_date": 1},
+        ).to_list(None)
+        ppm_by_day: dict = {}
+        for d in ppm_docs:
+            day = d["activation_day"]
+            if day not in ppm_by_day or d.get("upload_date", "") >= ppm_by_day[day].get("upload_date", ""):
+                ppm_by_day[day] = d
+        ppm_by_day = {k: v["ppm"] for k, v in ppm_by_day.items()}
+
+        cur_day = (today - launch_date).days + 1
+        latest_ppm = ppm_by_day.get(cur_day)
+        if latest_ppm is None and ppm_by_day:
+            latest_ppm = ppm_by_day[max(ppm_by_day.keys())]
+
         daily_data = []
         for day_num in range(1, max_days + 1):
             day_date = launch_date + timedelta(days=day_num - 1)
@@ -126,6 +144,7 @@ async def compare_by_activation_day(models: str = Query(...)):
                 "date": day_str,
                 "voc_count": voc_by_date.get(day_str, 0),
                 "qdata_count": qdata_by_date.get(day_str, 0),
+                "ppm": ppm_by_day.get(day_num),
             })
 
         result.append({
@@ -133,6 +152,7 @@ async def compare_by_activation_day(models: str = Query(...)):
             "display_name": eff_name,
             "launch_date": launch_date.strftime("%Y-%m-%d"),
             "max_days": (today - launch_date).days + 1,
+            "latest_ppm": latest_ppm,
             "model_names": model_names_in_group,
             "daily_data": daily_data,
         })

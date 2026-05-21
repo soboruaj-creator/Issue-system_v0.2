@@ -1,6 +1,7 @@
 """업로드 라우터"""
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from datetime import datetime
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from typing import Optional
+from datetime import datetime, date as date_type
 from database import get_collection
 from services.excel_service import read_excel_with_drm, read_qdata_excel_with_drm
 from services.voc_parser import process_voc_row, merge_similar_chipsets, convert_qdata_date
@@ -138,7 +139,7 @@ async def upload_app_keywords(file: UploadFile = File(...)):
 
 
 @router.post("/qdata")
-async def upload_qdata(file: UploadFile = File(...)):
+async def upload_qdata(file: UploadFile = File(...), ppm: Optional[float] = Form(None)):
     try:
         df = await read_qdata_excel_with_drm(file)
     except Exception as e:
@@ -150,6 +151,7 @@ async def upload_qdata(file: UploadFile = File(...)):
 
     col = get_collection("q_data")
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    today_str = date_type.today().strftime("%Y-%m-%d")
 
     success_count = duplicate_count = error_count = 0
 
@@ -172,9 +174,42 @@ async def upload_qdata(file: UploadFile = File(...)):
             error_count += 1
             print(f"Q-data insert error: {e}")
 
+    # PPM 기록
+    ppm_message = ""
+    if ppm is not None and not df.empty:
+        model_name = df["model_name"].dropna().mode()
+        model_name = model_name.iloc[0] if len(model_name) > 0 else None
+        if model_name:
+            launch_col = get_collection("launch_dates")
+            launch_doc = await launch_col.find_one({"model_name": model_name})
+            if not launch_doc and model_name.upper().startswith("SM-") and len(model_name) >= 7:
+                prefix = model_name[:7]
+                all_launch = await launch_col.find({}, {"model_name": 1, "launch_date": 1}).to_list(None)
+                for d in all_launch:
+                    if d.get("model_name", "")[:7] == prefix:
+                        launch_doc = d
+                        break
+            if launch_doc and launch_doc.get("launch_date"):
+                launch_date = datetime.strptime(launch_doc["launch_date"], "%Y-%m-%d").date()
+                activation_day = (date_type.today() - launch_date).days + 1
+                ppm_col = get_collection("ppm_data")
+                await ppm_col.update_one(
+                    {"model_name": model_name, "activation_day": activation_day},
+                    {"$set": {
+                        "model_name": model_name,
+                        "upload_date": today_str,
+                        "activation_day": activation_day,
+                        "ppm": ppm,
+                    }},
+                    upsert=True,
+                )
+                ppm_message = f" | PPM {ppm} (개통 {activation_day}일차) 기록"
+            else:
+                ppm_message = " | PPM 기록 실패: 출시일 미등록"
+
     return {
         "success": True,
-        "message": f"Q-data 업로드 완료: {success_count}건 성공, {duplicate_count}건 중복, {error_count}건 실패",
+        "message": f"Q-data 업로드 완료: {success_count}건 성공, {duplicate_count}건 중복, {error_count}건 실패" + ppm_message,
         "success_count": success_count,
         "duplicate_count": duplicate_count,
         "error_count": error_count,

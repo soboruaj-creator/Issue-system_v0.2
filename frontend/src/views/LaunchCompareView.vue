@@ -73,6 +73,7 @@
           <span class="total-counts">
             <span class="tc voc">Members issue {{ totalVoc(r) }}건</span>
             <span class="tc qdata">Q-data {{ totalQdata(r) }}건</span>
+            <span v-if="r.latest_ppm != null" class="tc ppm">PPM {{ r.latest_ppm.toFixed(1) }}</span>
           </span>
         </span>
       </div>
@@ -111,6 +112,7 @@
                     <span class="legend-dot" :style="{ background: MODEL_COLORS[compareResult.indexOf(r)] }"></span>
                     {{ r.display_name }} Q-data
                   </th>
+                  <th>{{ r.display_name }} PPM</th>
                 </template>
               </tr>
             </thead>
@@ -128,6 +130,12 @@
                   <td>
                     <span v-if="row.data[r.model_name]" class="badge qdata">
                       {{ row.data[r.model_name].qdata_count }}
+                    </span>
+                    <span v-else class="na">-</span>
+                  </td>
+                  <td>
+                    <span v-if="row.data[r.model_name]?.ppm != null" class="badge ppm">
+                      {{ row.data[r.model_name].ppm.toFixed(1) }}
                     </span>
                     <span v-else class="na">-</span>
                   </td>
@@ -345,6 +353,8 @@ onMounted(() => loadLaunchModels())
 .tc { font-size: 0.78rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
 .tc.voc { background: #e8eaf6; color: #1a237e; }
 .tc.qdata { background: #fff3e0; color: #e65100; }
+.tc.ppm { background: #e8f5e9; color: #2e7d32; }
+.badge.ppm { background: #e8f5e9; color: #2e7d32; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .chart-wrap-lg { height: 300px; }
 .table-scroll { overflow-x: auto; }

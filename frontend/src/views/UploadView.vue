@@ -98,6 +98,11 @@
       <div class="card upload-card">
         <h2>📊 Q-data 업로드</h2>
         <p class="desc">서비스 Q-data 엑셀 파일을 업로드합니다.</p>
+        <div class="ppm-input-wrap">
+          <label class="ppm-label">PPM (선택)</label>
+          <input type="number" v-model="qdataPpm" class="ppm-input" placeholder="예: 1234.5" step="0.1" min="0" />
+          <span class="ppm-hint">웹사이트에서 조회한 PPM 값을 입력하세요</span>
+        </div>
         <div class="drop-zone" @dragover.prevent @drop.prevent="handleDrop($event, 'qdata')"
              :class="{ 'drag-over': dragging === 'qdata' }"
              @dragenter="dragging='qdata'" @dragleave="dragging=null">
@@ -108,7 +113,7 @@
             <p class="sub-text">{{ qdataFile?.name || '파일 미선택' }}</p>
           </div>
         </div>
-        <button class="btn-upload" @click="upload('qdata')" :disabled="!qdataFile || qdataLoading">
+        <button class="btn-upload" @click="uploadQdataWithPpm" :disabled="!qdataFile || qdataLoading">
           {{ qdataLoading ? '업로드 중...' : '업로드' }}
         </button>
         <div v-if="qdataResult" :class="['result', qdataResult.success ? 'success' : 'error']">
@@ -128,7 +133,7 @@ const dragging = ref(null)
 const vocFile = ref(null), vocLoading = ref(false), vocResult = ref(null)
 const chipsetFile = ref(null), chipsetLoading = ref(false), chipsetResult = ref(null)
 const appFile = ref(null), appLoading = ref(false), appResult = ref(null)
-const qdataFile = ref(null), qdataLoading = ref(false), qdataResult = ref(null)
+const qdataFile = ref(null), qdataLoading = ref(false), qdataResult = ref(null), qdataPpm = ref('')
 const launchFile = ref(null), launchLoading = ref(false), launchResult = ref(null)
 
 function handleFile(e, type) {
@@ -154,7 +159,6 @@ async function upload(type) {
   const apis = { voc: [vocFile, vocLoading, vocResult, uploadVoc],
                  chipset: [chipsetFile, chipsetLoading, chipsetResult, uploadChipsetMapping],
                  app: [appFile, appLoading, appResult, uploadAppKeywords],
-                 qdata: [qdataFile, qdataLoading, qdataResult, uploadQData],
                  launch: [launchFile, launchLoading, launchResult, uploadLaunchDates] }
   const [fileRef, loadingRef, resultRef, apiFn] = apis[type]
 
@@ -167,6 +171,20 @@ async function upload(type) {
     resultRef.value = { success: false, message: e.response?.data?.detail || '업로드 실패' }
   } finally {
     loadingRef.value = false
+  }
+}
+
+async function uploadQdataWithPpm() {
+  qdataLoading.value = true
+  qdataResult.value = null
+  try {
+    const ppm = qdataPpm.value !== '' ? parseFloat(qdataPpm.value) : null
+    const res = await uploadQData(qdataFile.value, ppm)
+    qdataResult.value = res.data
+  } catch (e) {
+    qdataResult.value = { success: false, message: e.response?.data?.detail || '업로드 실패' }
+  } finally {
+    qdataLoading.value = false
   }
 }
 </script>
@@ -190,4 +208,8 @@ async function upload(type) {
 .result.success { background: #e8f5e9; color: #2e7d32; }
 .result.error { background: #fce4ec; color: #b71c1c; }
 .unmapped { margin-top: 6px; font-size: 0.8rem; color: #e65100; }
+.ppm-input-wrap { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.ppm-label { font-size: 0.85rem; font-weight: 600; color: #555; }
+.ppm-input { padding: 7px 10px; border: 1px solid #c5cae9; border-radius: 6px; font-size: 0.9rem; width: 160px; }
+.ppm-hint { font-size: 0.78rem; color: #999; }
 </style>

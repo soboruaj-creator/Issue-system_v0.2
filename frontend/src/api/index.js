@@ -25,9 +25,10 @@ export const uploadAppKeywords = (file) => {
   return api.post('/upload/app_keywords', form)
 }
 
-export const uploadQData = (file) => {
+export const uploadQData = (file, ppm = null) => {
   const form = new FormData()
   form.append('file', file)
+  if (ppm !== null && ppm !== '') form.append('ppm', ppm)
   return api.post('/upload/qdata', form)
 }
 
