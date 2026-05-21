@@ -190,18 +190,45 @@ async def get_monthly_statistics(
 async def get_chipset_statistics(
     start_date: Optional[str] = None, end_date: Optional[str] = None
 ):
-    col = get_collection("internal_voc")
-    match = {"chipset": {"$ne": None}}
-    if start_date and end_date:
-        match["created_date"] = {"$gte": start_date, "$lte": end_date + "~"}
+    voc_col = get_collection("internal_voc")
+    qdata_col = get_collection("q_data")
+    chipset_col = get_collection("chipset_mapping")
 
-    pipeline = [
-        {"$match": match},
-        {"$group": {"_id": "$chipset", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}},
-        {"$project": {"chipset": "$_id", "count": 1, "_id": 0}},
+    voc_match = {"chipset": {"$ne": None}}
+    if start_date and end_date:
+        voc_match["created_date"] = {"$gte": start_date, "$lte": end_date + "~"}
+
+    voc_docs = await voc_col.aggregate([
+        {"$match": voc_match},
+        {"$group": {"_id": "$chipset", "voc_count": {"$sum": 1}}},
+    ]).to_list(None)
+    voc_map = {d["_id"]: d["voc_count"] for d in voc_docs}
+
+    # Q-data: model_name → chipset via chipset_mapping
+    mapping_docs = await chipset_col.find({}, {"_id": 0, "model_name": 1, "chipset": 1}).to_list(None)
+    model_to_chipset = {d["model_name"]: d["chipset"] for d in mapping_docs}
+
+    qdata_match = {"model_name": {"$ne": None}}
+    if start_date and end_date:
+        qdata_match["service_date"] = {"$gte": start_date, "$lte": end_date}
+
+    qdata_docs = await qdata_col.aggregate([
+        {"$match": qdata_match},
+        {"$group": {"_id": "$model_name", "count": {"$sum": 1}}},
+    ]).to_list(None)
+
+    qdata_map: dict = {}
+    for d in qdata_docs:
+        chipset = model_to_chipset.get(d["_id"])
+        if chipset:
+            qdata_map[chipset] = qdata_map.get(chipset, 0) + d["count"]
+
+    all_chipsets = sorted(set(voc_map) | set(qdata_map),
+                          key=lambda c: voc_map.get(c, 0) + qdata_map.get(c, 0), reverse=True)
+    return [
+        {"chipset": c, "voc_count": voc_map.get(c, 0), "qdata_count": qdata_map.get(c, 0)}
+        for c in all_chipsets
     ]
-    return await col.aggregate(pipeline).to_list(None)
 
 
 @router.get("/app")
@@ -292,6 +319,40 @@ async def get_qdata_model_statistics(
     result = await col.aggregate(pipeline).to_list(None)
     mmap = await _get_marketing_map()
     return _apply_marketing(result, mmap)
+
+
+@router.get("/qdata/weekly")
+async def get_qdata_weekly_statistics(
+    start_date: Optional[str] = None, end_date: Optional[str] = None
+):
+    col = get_collection("q_data")
+    match = {"service_date": {"$ne": None}}
+    if start_date and end_date:
+        match["service_date"] = {"$gte": start_date, "$lte": end_date}
+
+    pipeline = [
+        {"$match": match},
+        {
+            "$group": {
+                "_id": {
+                    "$dateToString": {
+                        "format": "%Y-%V",
+                        "date": {
+                            "$dateFromString": {
+                                "dateString": {"$substr": ["$service_date", 0, 10]},
+                                "onError": None,
+                            }
+                        },
+                    }
+                },
+                "count": {"$sum": 1},
+            }
+        },
+        {"$match": {"_id": {"$ne": None}}},
+        {"$sort": {"_id": 1}},
+        {"$project": {"week": "$_id", "count": 1, "_id": 0}},
+    ]
+    return await col.aggregate(pipeline).to_list(None)
 
 
 @router.get("/qdata/monthly")

@@ -55,6 +55,7 @@ export const getModelsMonthlyStats = (models) =>
 
 export const listQData = (params = {}) => api.get('/qdata', { params })
 export const getQDataModelStats = (params = {}) => api.get('/statistics/qdata/model', { params })
+export const getQDataWeeklyStats = (params = {}) => api.get('/statistics/qdata/weekly', { params })
 export const getQDataMonthlyStats = (params = {}) => api.get('/statistics/qdata/monthly', { params })
 export const checkQDataDuplicates = () => api.get('/qdata/check-duplicates')
 export const removeQDataDuplicates = () => api.post('/qdata/remove-duplicates')
