@@ -1,6 +1,6 @@
 <template>
   <div class="launch-view">
-    <h1 class="page-title">개통일별 추이 비교 분석</h1>
+    <h1 class="page-title">모델별 비교 분석</h1>
     <p class="page-desc">모델 출시일을 기준으로 개통일(출시 후 경과일) 단위로 Members issue/Q-data 건수를 비교합니다.</p>
 
     <!-- 모델 선택 -->
@@ -70,6 +70,11 @@
           <strong>{{ r.display_name }}</strong>
           <span v-if="r.model_names && r.model_names.length > 1" class="sub-models">({{ r.model_names.join(', ') }})</span>
           출시일 {{ r.launch_date }} · 개통 {{ r.max_days }}일차
+          <span class="total-counts">
+            <span class="tc voc">Members issue {{ totalVoc(r) }}건</span>
+            <span class="tc qdata">Q-data {{ totalQdata(r) }}건</span>
+            <span v-if="r.latest_ppm != null" class="tc ppm">PPM {{ r.latest_ppm.toFixed(1) }}</span>
+          </span>
         </span>
       </div>
 
@@ -107,6 +112,7 @@
                     <span class="legend-dot" :style="{ background: MODEL_COLORS[compareResult.indexOf(r)] }"></span>
                     {{ r.display_name }} Q-data
                   </th>
+                  <th>{{ r.display_name }} PPM</th>
                 </template>
               </tr>
             </thead>
@@ -124,6 +130,12 @@
                   <td>
                     <span v-if="row.data[r.model_name]" class="badge qdata">
                       {{ row.data[r.model_name].qdata_count }}
+                    </span>
+                    <span v-else class="na">-</span>
+                  </td>
+                  <td>
+                    <span v-if="row.data[r.model_name]?.ppm != null" class="badge ppm">
+                      {{ row.data[r.model_name].ppm.toFixed(1) }}
                     </span>
                     <span v-else class="na">-</span>
                   </td>
@@ -224,6 +236,14 @@ function addModel() {
 function removeModel(idx) {
   selectedModels.value.splice(idx, 1)
   searchQueries.value.splice(idx, 1)
+}
+
+function totalVoc(r) {
+  return r.daily_data.reduce((s, d) => s + d.voc_count, 0).toLocaleString()
+}
+
+function totalQdata(r) {
+  return r.daily_data.reduce((s, d) => s + d.qdata_count, 0).toLocaleString()
 }
 
 async function compare() {
@@ -329,6 +349,12 @@ onMounted(() => loadLaunchModels())
 .info-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
 .info-chip { display: flex; align-items: center; gap: 6px; padding: 6px 14px; background: #fff; border: 2px solid #ccc; border-radius: 20px; font-size: 0.85rem; flex-wrap: wrap; }
 .sub-models { font-size: 0.78rem; color: #888; }
+.total-counts { display: flex; gap: 6px; margin-left: 4px; }
+.tc { font-size: 0.78rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.tc.voc { background: #e8eaf6; color: #1a237e; }
+.tc.qdata { background: #fff3e0; color: #e65100; }
+.tc.ppm { background: #e8f5e9; color: #2e7d32; }
+.badge.ppm { background: #e8f5e9; color: #2e7d32; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .chart-wrap-lg { height: 300px; }
 .table-scroll { overflow-x: auto; }

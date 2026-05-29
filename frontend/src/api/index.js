@@ -25,9 +25,10 @@ export const uploadAppKeywords = (file) => {
   return api.post('/upload/app_keywords', form)
 }
 
-export const uploadQData = (file) => {
+export const uploadQData = (file, ppm = null) => {
   const form = new FormData()
   form.append('file', file)
+  if (ppm !== null && ppm !== '') form.append('ppm', ppm)
   return api.post('/upload/qdata', form)
 }
 
@@ -55,6 +56,7 @@ export const getModelsMonthlyStats = (models) =>
 
 export const listQData = (params = {}) => api.get('/qdata', { params })
 export const getQDataModelStats = (params = {}) => api.get('/statistics/qdata/model', { params })
+export const getQDataWeeklyStats = (params = {}) => api.get('/statistics/qdata/weekly', { params })
 export const getQDataMonthlyStats = (params = {}) => api.get('/statistics/qdata/monthly', { params })
 export const checkQDataDuplicates = () => api.get('/qdata/check-duplicates')
 export const removeQDataDuplicates = () => api.post('/qdata/remove-duplicates')
@@ -124,8 +126,47 @@ export const getLaunchModels = () => api.get('/launch/models')
 export const compareLaunchModels = (models) =>
   api.get('/launch/compare', { params: { models: models.join(',') } })
 
+// ─── 모델 노트 ────────────────────────────────────────────────────────────────
+
+export const getModelNotes = (modelName) =>
+  api.get(`/model-notes/${encodeURIComponent(modelName)}`)
+
+export const createModelNote = (modelName, data) =>
+  api.post(`/model-notes/${encodeURIComponent(modelName)}`, data)
+
+export const updateModelNote = (noteId, data) =>
+  api.put(`/model-notes/${noteId}`, data)
+
+export const deleteModelNote = (noteId) =>
+  api.delete(`/model-notes/${noteId}`)
+
 export const uploadLaunchDates = (file) => {
   const form = new FormData()
   form.append('file', file)
   return api.post('/upload/launch_dates', form)
 }
+
+// ─── 개발이슈 ──────────────────────────────────────────────────────────────────
+
+export const uploadDevIssues = (file) => {
+  const form = new FormData()
+  form.append('file', file)
+  return api.post('/upload/dev_issues', form)
+}
+
+export const getDevIssueDashboard = () => api.get('/dev-issues/dashboard')
+export const getModelDevIssues = (modelName) =>
+  api.get(`/dev-issues/model/${encodeURIComponent(modelName)}`)
+export const searchDevIssue = (caseCode) =>
+  api.get('/dev-issues/search', { params: { case_code: caseCode } })
+export const updateDevIssuePending = (caseCode, isPending, memo) =>
+  api.post(`/dev-issues/${caseCode}/pending`, { is_pending: isPending, memo })
+export const uploadDevIssueAttachment = (caseCode, file) => {
+  const form = new FormData()
+  form.append('file', file)
+  return api.post(`/dev-issues/${caseCode}/attachment`, form)
+}
+export const deleteDevIssueAttachment = (caseCode, storedName) =>
+  api.delete(`/dev-issues/${caseCode}/attachment/${encodeURIComponent(storedName)}`)
+export const getDevIssueAttachmentUrl = (caseCode, storedName) =>
+  `/api/dev-issues/${caseCode}/attachment/${encodeURIComponent(storedName)}`

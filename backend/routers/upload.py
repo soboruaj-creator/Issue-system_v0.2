@@ -3,7 +3,8 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from datetime import datetime
 from database import get_collection
 from services.excel_service import read_excel_with_drm, read_qdata_excel_with_drm
-from services.voc_parser import process_voc_row, merge_similar_chipsets, convert_qdata_date
+from services.voc_parser import (process_voc_row, merge_similar_chipsets, convert_qdata_date,
+                                 extract_watch_model, extract_model_from_title, map_model_name)
 import pandas as pd
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
@@ -178,6 +179,85 @@ async def upload_qdata(file: UploadFile = File(...)):
         "success_count": success_count,
         "duplicate_count": duplicate_count,
         "error_count": error_count,
+    }
+
+
+@router.post("/dev_issues")
+async def upload_dev_issues(file: UploadFile = File(...)):
+    if not file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="엑셀 파일만 업로드 가능합니다.")
+    try:
+        df = await read_excel_with_drm(file)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    EXCLUDE = ["members", "k zone", "rdm", "디버그분석"]
+    col = get_collection("dev_issues")
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    success_count = skip_count = error_count = 0
+
+    for _, row in df.iterrows():
+        try:
+            def safe(val):
+                return str(val) if pd.notna(val) else None
+
+            case_code = safe(row.iloc[0])
+            title = safe(row.iloc[7])
+            status_raw = safe(row.iloc[6])
+
+            if not case_code:
+                continue
+
+            title_lower = (title or "").lower()
+            if any(kw in title_lower for kw in EXCLUDE):
+                skip_count += 1
+                continue
+
+            issue_type = "UT" if title and "ut" in title_lower else "자체"
+
+            watch = extract_watch_model(title)
+            if watch:
+                model_name = watch
+            else:
+                model_name = extract_model_from_title(title)
+            model_name = map_model_name(model_name) if model_name else None
+
+            status_norm = (status_raw or "").strip().lower()
+            if status_norm not in ("open", "resolve", "close"):
+                status_norm = "open"
+
+            existing = await col.find_one({"case_code": case_code})
+            if existing:
+                await col.update_one(
+                    {"case_code": case_code},
+                    {"$set": {
+                        "title": title,
+                        "model_name": model_name,
+                        "status": status_norm,
+                        "issue_type": issue_type,
+                        "uploaded_date": now_str,
+                    }},
+                )
+            else:
+                await col.insert_one({
+                    "case_code": case_code,
+                    "title": title,
+                    "model_name": model_name,
+                    "status": status_norm,
+                    "issue_type": issue_type,
+                    "is_pending": False,
+                    "pending_memo": "",
+                    "pending_attachments": [],
+                    "uploaded_date": now_str,
+                })
+            success_count += 1
+        except Exception as e:
+            error_count += 1
+            print(f"Dev issue row error: {e}")
+
+    return {
+        "success": True,
+        "message": f"개발이슈 업로드 완료: {success_count}건 처리, {skip_count}건 제외, {error_count}건 오류",
     }
 
 

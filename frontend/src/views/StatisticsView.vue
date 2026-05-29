@@ -108,16 +108,24 @@
 
     <!-- 주별 -->
     <div v-if="activeTab === 'weekly' && !loading" class="card">
-      <h2 class="section-title">주별 VOC 추이</h2>
+      <h2 class="section-title">주별 Members issue / Q-data 추이</h2>
       <div class="chart-wrap">
-        <Line v-if="weeklyChartData" :data="weeklyChartData" :options="lineOptions" />
+        <Line v-if="weeklyChartData" :data="weeklyChartData" :options="lineOptionsLegend" />
       </div>
       <table class="table mt-16">
-        <thead><tr><th>주차</th><th>건수</th><th>메모</th></tr></thead>
+        <thead>
+          <tr>
+            <th>주차</th>
+            <th><span class="legend-dot voc"></span> Members issue</th>
+            <th><span class="legend-dot qdata"></span> Q-data</th>
+            <th>메모</th>
+          </tr>
+        </thead>
         <tbody>
-          <tr v-for="item in weeklyStats" :key="item.week">
+          <tr v-for="item in [...combinedWeeklyData].reverse()" :key="item.week">
             <td>{{ item.week }}</td>
-            <td><span class="badge voc">{{ item.count }}</span></td>
+            <td><span class="badge voc">{{ item.voc_count }}</span></td>
+            <td><span class="badge qdata">{{ item.qdata_count }}</span></td>
             <td>
               <span v-if="!editingMemo[item.week]" class="memo-text" @click="startEdit(item.week, item.memo)">
                 {{ item.memo || '+ 메모 추가' }}
@@ -135,17 +143,25 @@
 
     <!-- 칩셋별 -->
     <div v-if="activeTab === 'chipset' && !loading" class="card">
-      <h2 class="section-title">칩셋별 VOC 건수</h2>
+      <h2 class="section-title">칩셋별 Members issue / Q-data</h2>
       <div class="chart-wrap">
-        <Doughnut v-if="chipsetChartData" :data="chipsetChartData" :options="doughnutOptions" />
+        <Bar v-if="chipsetChartData" :data="chipsetChartData" :options="chipsetBarOptions" />
       </div>
       <table class="table mt-16">
-        <thead><tr><th>순위</th><th>칩셋</th><th>건수</th></tr></thead>
+        <thead>
+          <tr>
+            <th>순위</th>
+            <th>칩셋</th>
+            <th><span class="legend-dot voc"></span> Members issue</th>
+            <th><span class="legend-dot qdata"></span> Q-data</th>
+          </tr>
+        </thead>
         <tbody>
           <tr v-for="(item, idx) in chipsetStats" :key="item.chipset">
             <td>{{ idx + 1 }}</td>
             <td>{{ item.chipset }}</td>
-            <td><span class="badge voc">{{ item.count }}</span></td>
+            <td><span class="badge voc">{{ item.voc_count }}</span></td>
+            <td><span class="badge qdata">{{ item.qdata_count }}</span></td>
           </tr>
         </tbody>
       </table>
@@ -210,6 +226,7 @@ const appStats = ref([])
 // Q-data 데이터
 const qdataModelStats = ref([])
 const qdataMonthlyStats = ref([])
+const qdataWeeklyStats = ref([])
 
 // 월별 모델 선택
 const selectedModel = ref('')
@@ -271,15 +288,36 @@ const combinedMonthlyChartData = computed(() => {
   }
 })
 
-const weeklyChartData = computed(() => weeklyStats.value.length ? {
-  labels: weeklyStats.value.map(i => i.week),
-  datasets: [{ label: '주별 VOC', data: weeklyStats.value.map(i => i.count),
-    borderColor: '#283593', backgroundColor: 'rgba(40,53,147,0.1)', tension: 0.4, fill: true, pointRadius: 4 }],
+const combinedWeeklyData = computed(() => {
+  const vocByWeek = Object.fromEntries(weeklyStats.value.map(i => [i.week, { count: i.count, memo: i.memo || '' }]))
+  const qdataByWeek = Object.fromEntries(qdataWeeklyStats.value.map(i => [i.week, i.count]))
+  const allWeeks = [...new Set([...Object.keys(vocByWeek), ...Object.keys(qdataByWeek)])].sort()
+  return allWeeks.map(week => ({
+    week,
+    voc_count: vocByWeek[week]?.count || 0,
+    qdata_count: qdataByWeek[week] || 0,
+    memo: vocByWeek[week]?.memo || '',
+  }))
+})
+
+const weeklyChartData = computed(() => combinedWeeklyData.value.length ? {
+  labels: combinedWeeklyData.value.map(i => i.week),
+  datasets: [
+    { label: 'Members issue', data: combinedWeeklyData.value.map(i => i.voc_count),
+      borderColor: '#1a237e', backgroundColor: 'rgba(26,35,126,0.1)', tension: 0.4, fill: false, pointRadius: 4 },
+    { label: 'Q-data', data: combinedWeeklyData.value.map(i => i.qdata_count),
+      borderColor: '#e64a19', backgroundColor: 'rgba(230,74,25,0.1)', tension: 0.4, fill: false, pointRadius: 4 },
+  ],
 } : null)
 
 const chipsetChartData = computed(() => chipsetStats.value.length ? {
   labels: chipsetStats.value.slice(0, 10).map(i => i.chipset),
-  datasets: [{ data: chipsetStats.value.slice(0, 10).map(i => i.count), backgroundColor: VOC_COLORS }],
+  datasets: [
+    { label: 'Members issue', data: chipsetStats.value.slice(0, 10).map(i => i.voc_count),
+      backgroundColor: 'rgba(26,35,126,0.7)', borderRadius: 4 },
+    { label: 'Q-data', data: chipsetStats.value.slice(0, 10).map(i => i.qdata_count),
+      backgroundColor: 'rgba(230,74,25,0.7)', borderRadius: 4 },
+  ],
 } : null)
 
 const appChartData = computed(() => appStats.value.length ? {
@@ -290,6 +328,7 @@ const appChartData = computed(() => appStats.value.length ? {
 
 const barOptions = { responsive: true, plugins: { legend: { display: false } } }
 const lineOptions = { responsive: true, plugins: { legend: { display: false } } }
+const chipsetBarOptions = { responsive: true, plugins: { legend: { display: true, position: 'top' } } }
 const lineOptionsLegend = computed(() => ({
   responsive: true,
   plugins: {
@@ -350,7 +389,12 @@ async function loadStats() {
       }
 
     } else if (tab === 'weekly') {
-      weeklyStats.value = (await api.getWeeklyStats(params)).data
+      const [vocResult, qdataResult] = await Promise.allSettled([
+        api.getWeeklyStats(params),
+        api.getQDataWeeklyStats(params),
+      ])
+      if (vocResult.status === 'fulfilled') weeklyStats.value = vocResult.value.data
+      if (qdataResult.status === 'fulfilled') qdataWeeklyStats.value = qdataResult.value.data
     } else if (tab === 'chipset') {
       chipsetStats.value = (await api.getChipsetStats(params)).data
     } else if (tab === 'app') {
@@ -402,7 +446,7 @@ async function saveMemo(type, key) {
 .btn-primary { padding: 8px 20px; background: #1a237e; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
 .btn-secondary { padding: 8px 20px; background: #fff; color: #1a237e; border: 1px solid #1a237e; border-radius: 6px; cursor: pointer; }
 .section-title { font-size: 1rem; font-weight: 600; margin-bottom: 14px; color: #333; }
-.chart-wrap { max-height: 300px; display: flex; justify-content: center; }
+.chart-wrap { max-height: 450px; display: flex; justify-content: center; }
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #eee; font-size: 0.88rem; }
 .table th { background: #f8f9ff; font-weight: 600; color: #555; }
