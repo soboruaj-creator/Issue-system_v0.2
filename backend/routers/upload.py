@@ -216,11 +216,15 @@ async def upload_dev_issues(file: UploadFile = File(...)):
 
             issue_type = "UT" if title and "ut" in title_lower else "자체"
 
+            col_d = safe(row.iloc[3])  # D열: 모델명 직접 기재
+
             watch = extract_watch_model(title)
             if watch:
                 model_name = watch
             else:
                 model_name = extract_model_from_title(title)
+                if not model_name and col_d:
+                    model_name = extract_watch_model(col_d) or extract_model_from_title(col_d) or col_d.strip()
             model_name = map_model_name(model_name) if model_name else None
 
             status_norm = (status_raw or "").strip().lower()
