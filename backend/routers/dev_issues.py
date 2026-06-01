@@ -59,12 +59,23 @@ async def _get_matching_names(model_name: str) -> set:
     return matching
 
 
+def _build_model_query(matching: set) -> dict:
+    """matching set으로 MongoDB 쿼리 생성. None 포함 시 null 조건 추가."""
+    names = [n for n in matching if n is not None and n != "미분류"]
+    include_null = None in matching or "미분류" in matching
+    if include_null and names:
+        return {"$or": [{"model_name": {"$in": names}}, {"model_name": None}, {"model_name": ""}]}
+    if include_null:
+        return {"$or": [{"model_name": None}, {"model_name": ""}]}
+    return {"model_name": {"$in": names}}
+
+
 @router.get("/model/{model_name}/monthly")
 async def get_model_dev_issues_monthly(model_name: str):
     matching = await _get_matching_names(model_name)
     col = get_collection("dev_issues")
     docs = await col.find(
-        {"model_name": {"$in": list(matching)}},
+        _build_model_query(matching),
         {"_id": 0, "created_date": 1, "issue_type": 1},
     ).to_list(None)
 
@@ -93,7 +104,7 @@ async def get_model_dev_issues(model_name: str):
     matching = await _get_matching_names(model_name)
     col = get_collection("dev_issues")
     all_docs = await col.find(
-        {"model_name": {"$in": list(matching)}},
+        _build_model_query(matching),
         {"_id": 0, "case_code": 1, "title": 1, "status": 1, "issue_type": 1,
          "is_pending": 1, "pending_memo": 1, "uploaded_date": 1},
     ).to_list(None)
