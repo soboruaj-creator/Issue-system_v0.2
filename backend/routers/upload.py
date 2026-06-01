@@ -1,4 +1,5 @@
 """업로드 라우터"""
+import re
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from datetime import datetime
 from database import get_collection
@@ -226,18 +227,27 @@ async def upload_dev_issues(file: UploadFile = File(...)):
             if status_norm not in ("open", "resolve", "close"):
                 status_norm = "open"
 
+            created_date = None
+            if case_code and case_code.upper().startswith("P"):
+                dm = re.search(r"P(\d{6})", case_code, re.IGNORECASE)
+                if dm:
+                    try:
+                        created_date = datetime.strptime(dm.group(1), "%y%m%d").strftime("%Y-%m-%d")
+                    except Exception:
+                        pass
+
             existing = await col.find_one({"case_code": case_code})
             if existing:
-                await col.update_one(
-                    {"case_code": case_code},
-                    {"$set": {
-                        "title": title,
-                        "model_name": model_name,
-                        "status": status_norm,
-                        "issue_type": issue_type,
-                        "uploaded_date": now_str,
-                    }},
-                )
+                update_fields = {
+                    "title": title,
+                    "model_name": model_name,
+                    "status": status_norm,
+                    "issue_type": issue_type,
+                    "uploaded_date": now_str,
+                }
+                if created_date and not existing.get("created_date"):
+                    update_fields["created_date"] = created_date
+                await col.update_one({"case_code": case_code}, {"$set": update_fields})
             else:
                 await col.insert_one({
                     "case_code": case_code,
@@ -245,6 +255,7 @@ async def upload_dev_issues(file: UploadFile = File(...)):
                     "model_name": model_name,
                     "status": status_norm,
                     "issue_type": issue_type,
+                    "created_date": created_date,
                     "is_pending": False,
                     "pending_memo": "",
                     "pending_attachments": [],

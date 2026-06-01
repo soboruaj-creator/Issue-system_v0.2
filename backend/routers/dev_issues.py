@@ -19,14 +19,21 @@ def _should_exclude(title: str) -> bool:
     return any(kw in t for kw in EXCLUDE_KEYWORDS)
 
 
+def _make_stats():
+    return {"total": 0, "open": 0, "resolve": 0, "close": 0, "pending": 0}
+
+
 @router.get("/dashboard")
 async def get_dev_dashboard():
+    from routers.statistics import _get_marketing_map
     col = get_collection("dev_issues")
     docs = await col.find({}, {"_id": 0, "model_name": 1, "status": 1, "is_pending": 1}).to_list(None)
+    mmap = await _get_marketing_map()
 
     models: dict = {}
     for d in docs:
-        m = d.get("model_name") or "미분류"
+        raw = d.get("model_name") or "미분류"
+        m = mmap.get(raw) or raw
         if m not in models:
             models[m] = {"model_name": m, "open": 0, "resolve": 0, "close": 0, "pending": 0, "total": 0}
         s = (d.get("status") or "").lower()
@@ -40,18 +47,50 @@ async def get_dev_dashboard():
     return sorted(result, key=lambda x: x["open"] + x["resolve"] + x["pending"], reverse=True)
 
 
-@router.get("/model/{model_name}")
-async def get_model_dev_issues(model_name: str):
+async def _get_matching_names(model_name: str) -> set:
     from routers.statistics import _get_marketing_map
     mmap = await _get_marketing_map()
-
     matching = {model_name}
     for raw, mkt in mmap.items():
         if mkt == model_name:
             matching.add(raw)
         if raw == model_name and mkt:
             matching.add(mkt)
+    return matching
 
+
+@router.get("/model/{model_name}/monthly")
+async def get_model_dev_issues_monthly(model_name: str):
+    matching = await _get_matching_names(model_name)
+    col = get_collection("dev_issues")
+    docs = await col.find(
+        {"model_name": {"$in": list(matching)}},
+        {"_id": 0, "created_date": 1, "issue_type": 1},
+    ).to_list(None)
+
+    dev_monthly: dict = {}
+    ut_monthly: dict = {}
+
+    for d in docs:
+        date = d.get("created_date")
+        if not date:
+            continue
+        month = date[:7]
+        if d.get("issue_type") == "UT":
+            ut_monthly[month] = ut_monthly.get(month, 0) + 1
+        else:
+            dev_monthly[month] = dev_monthly.get(month, 0) + 1
+
+    all_months = set(dev_monthly) | set(ut_monthly)
+    return sorted([
+        {"month": m, "dev_count": dev_monthly.get(m, 0), "ut_count": ut_monthly.get(m, 0)}
+        for m in all_months
+    ], key=lambda x: x["month"])
+
+
+@router.get("/model/{model_name}")
+async def get_model_dev_issues(model_name: str):
+    matching = await _get_matching_names(model_name)
     col = get_collection("dev_issues")
     all_docs = await col.find(
         {"model_name": {"$in": list(matching)}},
@@ -59,17 +98,24 @@ async def get_model_dev_issues(model_name: str):
          "is_pending": 1, "pending_memo": 1, "uploaded_date": 1},
     ).to_list(None)
 
-    stats = {"total": len(all_docs), "open": 0, "resolve": 0, "close": 0, "pending": 0}
+    stats_all = _make_stats()
+    stats_dev = _make_stats()
+    stats_ut = _make_stats()
+
     for d in all_docs:
         s = (d.get("status") or "").lower()
-        if s in stats:
-            stats[s] += 1
-        if d.get("is_pending"):
-            stats["pending"] += 1
+        itype = d.get("issue_type", "자체")
+        target = stats_ut if itype == "UT" else stats_dev
+        for st in [stats_all, target]:
+            st["total"] += 1
+            if s in ("open", "resolve", "close"):
+                st[s] += 1
+            if d.get("is_pending"):
+                st["pending"] += 1
 
     active = [d for d in all_docs if (d.get("status") or "").lower() != "close"]
     active.sort(key=lambda x: (-(1 if x.get("is_pending") else 0), x.get("status", "")))
-    return {"stats": stats, "issues": active}
+    return {"stats": stats_all, "stats_dev": stats_dev, "stats_ut": stats_ut, "issues": active}
 
 
 @router.get("/search")
