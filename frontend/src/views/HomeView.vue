@@ -10,17 +10,18 @@
         <!-- 좌: 개발 이슈 현황 -->
         <div class="dev-col">
           <div class="card dev-issues-panel">
-            <h2 class="section-title">개발 이슈 현황</h2>
+            <h2 class="section-title">개발 이슈 현황 <span class="count-badge dev">{{ devIssueList.length }}건</span></h2>
             <div v-if="devLoading" class="no-data">로딩 중...</div>
-            <div v-else-if="!devModels.length" class="no-data">활성 이슈 없음</div>
-            <div v-else class="dev-model-list">
-              <div v-for="m in devModels" :key="m.model_name" class="dev-model-item" @click="openModelDetail(m.model_name)">
-                <div class="dev-model-name">{{ m.model_name }}</div>
-                <div class="dev-badges">
-                  <span v-if="m.open" class="badge dev-open">Open {{ m.open }}</span>
-                  <span v-if="m.resolve" class="badge dev-resolve">Resolve {{ m.resolve }}</span>
-                  <span v-if="m.pending" class="badge dev-pending">Pending {{ m.pending }}</span>
+            <div v-else-if="!devIssueList.length" class="no-data">활성 이슈 없음</div>
+            <div v-else class="dev-entry-list">
+              <div v-for="(iss, idx) in devIssueList" :key="idx"
+                   class="dev-entry-item" @click="openModelDetail(iss.model_name)">
+                <div class="dev-entry-top">
+                  <span class="dev-entry-model">{{ iss.model_name }}</span>
+                  <span class="badge" :class="'dev-s-' + iss.status">{{ iss.status }}</span>
+                  <span v-if="iss.is_pending" class="badge dev-s-pending">P</span>
                 </div>
+                <div class="dev-entry-title">{{ iss.title }}</div>
               </div>
             </div>
           </div>
@@ -143,14 +144,14 @@ import { Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 } from 'chart.js'
-import { getDashboard, getDevIssueDashboard } from '../api'
+import { getDashboard, getDevIssueActiveList } from '../api'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 const router = useRouter()
 const data = ref(null)
 const loading = ref(false)
-const devModels = ref([])
+const devIssueList = ref([])
 const devLoading = ref(false)
 
 function formatUpload(dt) {
@@ -194,9 +195,9 @@ const barOptions = {
 onMounted(async () => {
   loading.value = true
   devLoading.value = true
-  const [dashRes, devRes] = await Promise.allSettled([getDashboard(), getDevIssueDashboard()])
+  const [dashRes, devRes] = await Promise.allSettled([getDashboard(), getDevIssueActiveList()])
   if (dashRes.status === 'fulfilled') data.value = dashRes.value.data
-  if (devRes.status === 'fulfilled') devModels.value = devRes.value.data
+  if (devRes.status === 'fulfilled') devIssueList.value = devRes.value.data
   loading.value = false
   devLoading.value = false
 })
@@ -206,22 +207,25 @@ onMounted(async () => {
 .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 20px; color: #1a237e; }
 .loading { text-align: center; padding: 60px; color: #888; }
 
-.home-grid { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
-@media (max-width: 1100px) { .home-grid { grid-template-columns: 1fr; } }
+.home-grid { display: grid; grid-template-columns: 380px 1fr; gap: 16px; align-items: start; }
+@media (max-width: 1200px) { .home-grid { grid-template-columns: 1fr; } }
 
 .dev-col { min-width: 0; }
 .main-col { min-width: 0; }
 
 /* Dev issues panel */
 .dev-issues-panel { height: fit-content; }
-.dev-model-list { display: flex; flex-direction: column; gap: 8px; max-height: 600px; overflow-y: auto; }
-.dev-model-item { padding: 10px 12px; border-radius: 8px; background: #f8f9ff; cursor: pointer; transition: background 0.15s; }
-.dev-model-item:hover { background: #e8eaf6; }
-.dev-model-name { font-weight: 700; font-size: 0.88rem; color: #1a237e; margin-bottom: 5px; }
-.dev-badges { display: flex; flex-wrap: wrap; gap: 4px; }
-.badge.dev-open { background: #e3f2fd; color: #1565c0; }
-.badge.dev-resolve { background: #e8f5e9; color: #2e7d32; }
-.badge.dev-pending { background: #fff3e0; color: #e65100; }
+.count-badge.dev { background: #e8eaf6; color: #1a237e; }
+.dev-entry-list { max-height: 640px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.dev-entry-item { padding: 8px 10px; border-radius: 7px; background: #f8f9ff; cursor: pointer; transition: background 0.15s; }
+.dev-entry-item:hover { background: #e8eaf6; }
+.dev-entry-top { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.dev-entry-model { font-weight: 700; font-size: 0.82rem; color: #1a237e; white-space: nowrap; }
+.dev-entry-title { font-size: 0.82rem; color: #444; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.badge.dev-s-open { background: #e3f2fd; color: #1565c0; font-size: 0.74rem; padding: 1px 6px; }
+.badge.dev-s-resolve { background: #e8f5e9; color: #2e7d32; font-size: 0.74rem; padding: 1px 6px; }
+.badge.dev-s-close { background: #f5f5f5; color: #888; font-size: 0.74rem; padding: 1px 6px; }
+.badge.dev-s-pending { background: #fff3e0; color: #e65100; font-size: 0.74rem; padding: 1px 6px; }
 
 /* Stat row */
 .stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }

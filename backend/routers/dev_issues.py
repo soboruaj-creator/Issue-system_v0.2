@@ -30,6 +30,33 @@ async def reset_dev_issues():
     return {"success": True, "deleted_count": result.deleted_count}
 
 
+@router.get("/active-list")
+async def get_dev_active_list():
+    from routers.statistics import _get_marketing_map
+    col = get_collection("dev_issues")
+    docs = await col.find(
+        {},
+        {"_id": 0, "case_code": 1, "model_name": 1, "title": 1, "status": 1, "is_pending": 1},
+    ).to_list(None)
+    mmap = await _get_marketing_map()
+
+    result = []
+    for d in docs:
+        s = (d.get("status") or "").lower()
+        if s == "close" and not d.get("is_pending"):
+            continue
+        raw = d.get("model_name") or "미분류"
+        model = mmap.get(raw) or raw
+        result.append({
+            "model_name": model,
+            "title": d.get("title") or "",
+            "status": s,
+            "is_pending": d.get("is_pending", False),
+        })
+    result.sort(key=lambda x: (0 if x["status"] == "open" else 1 if x["status"] == "resolve" else 2, x["model_name"]))
+    return result
+
+
 @router.get("/dashboard")
 async def get_dev_dashboard():
     from routers.statistics import _get_marketing_map

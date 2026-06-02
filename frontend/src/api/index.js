@@ -155,6 +155,7 @@ export const uploadDevIssues = (file) => {
 }
 
 export const getDevIssueDashboard = () => api.get('/dev-issues/dashboard')
+export const getDevIssueActiveList = () => api.get('/dev-issues/active-list')
 export const getModelDevIssues = (modelName) =>
   api.get(`/dev-issues/model/${encodeURIComponent(modelName)}`)
 export const getModelDevIssuesMonthly = (modelName) =>
