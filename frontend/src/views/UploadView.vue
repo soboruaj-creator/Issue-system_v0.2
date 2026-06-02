@@ -111,6 +111,9 @@
         <button class="btn-upload" @click="upload('devissue')" :disabled="!devissueFile || devissueLoading">
           {{ devissueLoading ? '업로드 중...' : '업로드' }}
         </button>
+        <button class="btn-reset" @click="handleResetDevIssues" :disabled="devissueResetting">
+          {{ devissueResetting ? '초기화 중...' : '전체 데이터 초기화' }}
+        </button>
         <div v-if="devissueResult" :class="['result', devissueResult.success ? 'success' : 'error']">
           {{ devissueResult.message }}
         </div>
@@ -148,7 +151,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { uploadVoc, uploadChipsetMapping, uploadAppKeywords, uploadQData, uploadLaunchDates, uploadDevIssues } from '../api'
+import { uploadVoc, uploadChipsetMapping, uploadAppKeywords, uploadQData, uploadLaunchDates, uploadDevIssues, resetDevIssues } from '../api'
 
 const dragging = ref(null)
 
@@ -157,7 +160,7 @@ const chipsetFile = ref(null), chipsetLoading = ref(false), chipsetResult = ref(
 const appFile = ref(null), appLoading = ref(false), appResult = ref(null)
 const qdataFile = ref(null), qdataLoading = ref(false), qdataResult = ref(null), qdataPpm = ref('')
 const launchFile = ref(null), launchLoading = ref(false), launchResult = ref(null)
-const devissueFile = ref(null), devissueLoading = ref(false), devissueResult = ref(null)
+const devissueFile = ref(null), devissueLoading = ref(false), devissueResult = ref(null), devissueResetting = ref(false)
 
 function handleFile(e, type) {
   const file = e.target.files[0]
@@ -199,6 +202,20 @@ async function upload(type) {
   }
 }
 
+async function handleResetDevIssues() {
+  if (!confirm('개발이슈 전체 데이터를 삭제합니다. 계속하시겠습니까?')) return
+  devissueResetting.value = true
+  devissueResult.value = null
+  try {
+    const res = await resetDevIssues()
+    devissueResult.value = { success: true, message: `초기화 완료: ${res.data.deleted_count}건 삭제됨` }
+  } catch (e) {
+    devissueResult.value = { success: false, message: '초기화 실패' }
+  } finally {
+    devissueResetting.value = false
+  }
+}
+
 async function uploadQdataWithPpm() {
   qdataLoading.value = true
   qdataResult.value = null
@@ -229,6 +246,9 @@ async function uploadQdataWithPpm() {
 .hidden-input { display: none; }
 .btn-upload { margin-top: 14px; width: 100%; padding: 10px; background: #1a237e; color: #fff; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; transition: opacity 0.2s; }
 .btn-upload:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-reset { margin-top: 8px; width: 100%; padding: 8px; background: #fff; color: #c62828; border: 1px solid #c62828; border-radius: 6px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s; }
+.btn-reset:hover { background: #fce4ec; }
+.btn-reset:disabled { opacity: 0.5; cursor: not-allowed; }
 .result { margin-top: 12px; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; white-space: pre-line; }
 .result.success { background: #e8f5e9; color: #2e7d32; }
 .result.error { background: #fce4ec; color: #b71c1c; }

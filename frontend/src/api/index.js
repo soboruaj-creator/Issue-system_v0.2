@@ -172,3 +172,4 @@ export const deleteDevIssueAttachment = (caseCode, storedName) =>
   api.delete(`/dev-issues/${caseCode}/attachment/${encodeURIComponent(storedName)}`)
 export const getDevIssueAttachmentUrl = (caseCode, storedName) =>
   `/api/dev-issues/${caseCode}/attachment/${encodeURIComponent(storedName)}`
+export const resetDevIssues = () => api.post('/dev-issues/reset')

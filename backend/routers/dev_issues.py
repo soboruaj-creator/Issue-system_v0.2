@@ -23,6 +23,13 @@ def _make_stats():
     return {"total": 0, "open": 0, "resolve": 0, "close": 0, "pending": 0}
 
 
+@router.post("/reset")
+async def reset_dev_issues():
+    col = get_collection("dev_issues")
+    result = await col.delete_many({})
+    return {"success": True, "deleted_count": result.deleted_count}
+
+
 @router.get("/dashboard")
 async def get_dev_dashboard():
     from routers.statistics import _get_marketing_map
