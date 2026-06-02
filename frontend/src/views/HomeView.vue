@@ -162,43 +162,6 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-
-const openedModels = ref(new Set())
-
-const pendingIssues = computed(() =>
-  devIssueList.value.filter(i => i.is_pending)
-)
-
-const devIssuesByModel = computed(() => {
-  const groups = {}
-  for (const iss of devIssueList.value) {
-    if (iss.is_pending) continue  // pending은 별도 섹션
-    if (!iss.title) continue      // 제목 없는 항목 제외
-    if (!groups[iss.model_name]) groups[iss.model_name] = []
-    groups[iss.model_name].push(iss)
-  }
-  return Object.entries(groups)
-    .map(([model, issues]) => ({
-      model,
-      issues,
-      openCount: issues.filter(i => i.status === 'open').length,
-      resolveCount: issues.filter(i => i.status === 'resolve').length,
-    }))
-    .sort((a, b) => b.openCount - a.openCount || a.model.localeCompare(b.model))
-})
-
-function toggleModel(model) {
-  const s = new Set(openedModels.value)
-  s.has(model) ? s.delete(model) : s.add(model)
-  openedModels.value = s
-}
-
-// open 이슈가 있는 모델만 초기 펼침
-watch(devIssuesByModel, (groups) => {
-  const s = new Set()
-  groups.forEach(g => { if (g.openCount > 0) s.add(g.model) })
-  openedModels.value = s
-}, { immediate: true })
 import { useRouter } from 'vue-router'
 import { Bar } from 'vue-chartjs'
 import {
@@ -213,6 +176,41 @@ const data = ref(null)
 const loading = ref(false)
 const devIssueList = ref([])
 const devLoading = ref(false)
+const openedModels = ref(new Set())
+
+const pendingIssues = computed(() =>
+  devIssueList.value.filter(i => i.is_pending)
+)
+
+const devIssuesByModel = computed(() => {
+  const groups = {}
+  for (const iss of devIssueList.value) {
+    if (iss.is_pending) continue
+    if (!iss.title) continue
+    if (!groups[iss.model_name]) groups[iss.model_name] = []
+    groups[iss.model_name].push(iss)
+  }
+  return Object.entries(groups)
+    .map(([model, issues]) => ({
+      model,
+      issues,
+      openCount: issues.filter(i => i.status === 'open').length,
+      resolveCount: issues.filter(i => i.status === 'resolve').length,
+    }))
+    .sort((a, b) => b.openCount - a.openCount || a.model.localeCompare(b.model))
+})
+
+watch(devIssuesByModel, (groups) => {
+  const s = new Set()
+  groups.forEach(g => { if (g.openCount > 0) s.add(g.model) })
+  openedModels.value = s
+}, { immediate: true })
+
+function toggleModel(model) {
+  const s = new Set(openedModels.value)
+  s.has(model) ? s.delete(model) : s.add(model)
+  openedModels.value = s
+}
 
 function formatUpload(dt) {
   if (!dt) return '없음'
