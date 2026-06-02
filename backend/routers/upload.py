@@ -228,7 +228,9 @@ async def upload_dev_issues(file: UploadFile = File(...)):
             model_name = map_model_name(model_name) if model_name else None
 
             status_norm = (status_raw or "").strip().lower()
-            if status_norm not in ("open", "resolve", "close"):
+            if status_norm.startswith("resolve"):
+                status_norm = "resolve"
+            elif status_norm not in ("open", "close"):
                 status_norm = "open"
 
             created_date = None
