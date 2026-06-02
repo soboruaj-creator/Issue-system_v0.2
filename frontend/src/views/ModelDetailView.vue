@@ -117,10 +117,22 @@
           <div v-if="!devIssues.length" class="no-chart">활성 이슈 없음</div>
           <div v-else class="issue-list">
             <div v-for="iss in devIssues" :key="iss.case_code"
-                 class="issue-row" :class="{ 'pending-row': iss.is_pending }">
-              <span class="badge" :class="'dev-status-' + iss.status">{{ iss.status }}</span>
-              <span class="issue-title">{{ iss.title }}</span>
-              <span v-if="iss.is_pending" class="badge dev-pending">Pending</span>
+                 class="issue-item" :class="{ 'pending-row': iss.is_pending }">
+              <div class="issue-row">
+                <span class="badge" :class="'dev-status-' + iss.status">{{ iss.status }}</span>
+                <span class="issue-title">{{ iss.title }}</span>
+                <span class="issue-code">{{ iss.case_code }}</span>
+              </div>
+              <div v-if="iss.is_pending" class="pending-detail">
+                <span v-if="iss.pending_memo" class="pending-memo">📝 {{ iss.pending_memo }}</span>
+                <div v-if="iss.pending_attachments?.length" class="attach-list">
+                  <a v-for="att in iss.pending_attachments" :key="att.stored_name"
+                     :href="getDevIssueAttachmentUrl(iss.case_code, att.stored_name)"
+                     class="attach-link" download>
+                    📎 {{ att.filename }}
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </template>
@@ -178,7 +190,7 @@ import {
 } from 'chart.js'
 import {
   getEffectiveNameMonthly, getModelNotes, createModelNote, updateModelNote, deleteModelNote,
-  getModelDevIssues, getModelDevIssuesMonthly,
+  getModelDevIssues, getModelDevIssuesMonthly, getDevIssueAttachmentUrl,
 } from '../api'
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Title, Tooltip, Legend)
@@ -428,9 +440,16 @@ onMounted(load)
 .badge.dev-status-resolve { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
 .badge.dev-status-close { background: #f5f5f5; color: #757575; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
 .issue-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
-.issue-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 7px; background: #fafafa; border-left: 3px solid #e0e0e0; }
-.issue-row.pending-row { background: #fffde7; border-left-color: #ffa000; }
+.issue-item { border-radius: 7px; background: #fafafa; border-left: 3px solid #e0e0e0; overflow: hidden; }
+.issue-item.pending-row { background: #fffde7; border-left-color: #ffa000; }
+.issue-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
 .issue-title { flex: 1; font-size: 0.85rem; color: #333; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.issue-code { font-size: 0.78rem; color: #999; white-space: nowrap; font-family: monospace; }
+.pending-detail { padding: 4px 12px 8px 12px; display: flex; flex-direction: column; gap: 4px; }
+.pending-memo { font-size: 0.82rem; color: #795548; }
+.attach-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.attach-link { font-size: 0.8rem; color: #1565c0; text-decoration: none; background: #e3f2fd; padding: 2px 8px; border-radius: 4px; }
+.attach-link:hover { text-decoration: underline; }
 
 /* 이벤트 로그 */
 .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }

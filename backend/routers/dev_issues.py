@@ -113,7 +113,7 @@ async def get_model_dev_issues(model_name: str):
     all_docs = await col.find(
         _build_model_query(matching),
         {"_id": 0, "case_code": 1, "title": 1, "status": 1, "issue_type": 1,
-         "is_pending": 1, "pending_memo": 1, "uploaded_date": 1},
+         "is_pending": 1, "pending_memo": 1, "pending_attachments": 1, "uploaded_date": 1},
     ).to_list(None)
 
     stats_all = _make_stats()
