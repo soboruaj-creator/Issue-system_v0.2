@@ -10,9 +10,11 @@
     <div v-if="loading" class="loading">불러오는 중...</div>
 
     <template v-else>
-      <!-- 월별 추이 차트 -->
+      <!-- 추이 차트 (월별 or 주차별) -->
       <div class="card">
-        <div class="section-title">월별 인입 추이 (Members issue + Q-data + 개발이슈 + UT)</div>
+        <div class="section-title">
+          {{ showWeekly ? '주차별 인입 추이 (개발이슈 + UT)' : '월별 인입 추이 (Members issue + Q-data + 개발이슈 + UT)' }}
+        </div>
         <div class="chart-wrap">
           <Line v-if="chartData" :data="chartData" :options="chartOptions" />
           <div v-else class="no-chart">데이터 없음</div>
@@ -119,7 +121,7 @@
             <div v-for="iss in devIssues" :key="iss.case_code"
                  class="issue-item" :class="{ 'pending-row': iss.is_pending }">
               <div class="issue-row">
-                <span class="badge" :class="'dev-status-' + iss.status">{{ iss.status }}</span>
+                <span class="badge" :class="'dev-status-' + iss.status">{{ iss.is_pending && iss.status === 'close' ? 'close/Pending' : iss.status }}</span>
                 <span class="issue-title">{{ iss.title }}</span>
                 <span class="issue-code">{{ iss.case_code }}</span>
               </div>
@@ -190,7 +192,7 @@ import {
 } from 'chart.js'
 import {
   getEffectiveNameMonthly, getModelNotes, createModelNote, updateModelNote, deleteModelNote,
-  getModelDevIssues, getModelDevIssuesMonthly, getDevIssueAttachmentUrl,
+  getModelDevIssues, getModelDevIssuesMonthly, getModelDevIssuesWeekly, getDevIssueAttachmentUrl,
 } from '../api'
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Title, Tooltip, Legend)
@@ -202,12 +204,15 @@ const loading = ref(true)
 const vocMonthly = ref([])
 const qdataMonthly = ref([])
 const devMonthly = ref([])
+const devWeekly = ref([])
 const notes = ref([])
 const devIssues = ref([])
 const statsDev = ref({ total: 0, open: 0, resolve: 0, close: 0, pending: 0 })
 const statsUt = ref({ total: 0, open: 0, resolve: 0, close: 0, pending: 0 })
 const devLoading = ref(true)
 const devIssueError = ref(false)
+
+const showWeekly = computed(() => vocMonthly.value.length === 0 && qdataMonthly.value.length === 0)
 
 // ── 월별 합산 ────────────────────────────────────────────────────────────────
 
@@ -231,6 +236,33 @@ const monthlyRows = computed(() => {
 })
 
 const chartData = computed(() => {
+  if (showWeekly.value) {
+    const rows = [...devWeekly.value]
+    if (!rows.length) return null
+    return {
+      labels: rows.map(r => r.week),
+      datasets: [
+        {
+          label: '개발이슈',
+          data: rows.map(r => r.dev_count),
+          borderColor: '#43a047',
+          backgroundColor: 'rgba(67,160,71,0.08)',
+          tension: 0.3,
+          fill: true,
+          pointRadius: 3,
+        },
+        {
+          label: 'UT',
+          data: rows.map(r => r.ut_count),
+          borderColor: '#e53935',
+          backgroundColor: 'rgba(229,57,53,0.08)',
+          tension: 0.3,
+          fill: true,
+          pointRadius: 3,
+        },
+      ],
+    }
+  }
   const rows = [...monthlyRows.value].reverse()
   if (!rows.length) return null
   return {
@@ -287,11 +319,12 @@ const chartOptions = {
 async function load() {
   loading.value = true
   devLoading.value = true
-  const [statsRes, notesRes, devRes, devMonthlyRes] = await Promise.allSettled([
+  const [statsRes, notesRes, devRes, devMonthlyRes, devWeeklyRes] = await Promise.allSettled([
     getEffectiveNameMonthly(modelName),
     getModelNotes(modelName),
     getModelDevIssues(modelName),
     getModelDevIssuesMonthly(modelName),
+    getModelDevIssuesWeekly(modelName),
   ])
   if (statsRes.status === 'fulfilled') {
     vocMonthly.value = statsRes.value.data.voc_monthly || []
@@ -306,9 +339,8 @@ async function load() {
   } else {
     devIssueError.value = true
   }
-  if (devMonthlyRes.status === 'fulfilled') {
-    devMonthly.value = devMonthlyRes.value.data || []
-  }
+  if (devMonthlyRes.status === 'fulfilled') devMonthly.value = devMonthlyRes.value.data || []
+  if (devWeeklyRes.status === 'fulfilled') devWeekly.value = devWeeklyRes.value.data || []
   loading.value = false
   devLoading.value = false
 }

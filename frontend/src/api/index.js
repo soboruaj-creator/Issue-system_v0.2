@@ -160,6 +160,8 @@ export const getModelDevIssues = (modelName) =>
   api.get(`/dev-issues/model/${encodeURIComponent(modelName)}`)
 export const getModelDevIssuesMonthly = (modelName) =>
   api.get(`/dev-issues/model/${encodeURIComponent(modelName)}/monthly`)
+export const getModelDevIssuesWeekly = (modelName) =>
+  api.get(`/dev-issues/model/${encodeURIComponent(modelName)}/weekly`)
 export const searchDevIssue = (caseCode) =>
   api.get('/dev-issues/search', { params: { case_code: caseCode } })
 export const updateDevIssuePending = (caseCode, isPending, memo) =>

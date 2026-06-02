@@ -104,6 +104,39 @@ def _build_model_query(matching: set) -> dict:
     return {"model_name": {"$in": names}}
 
 
+@router.get("/model/{model_name}/weekly")
+async def get_model_dev_issues_weekly(model_name: str):
+    matching = await _get_matching_names(model_name)
+    col = get_collection("dev_issues")
+    docs = await col.find(
+        _build_model_query(matching),
+        {"_id": 0, "created_date": 1, "issue_type": 1},
+    ).to_list(None)
+
+    dev_weekly: dict = {}
+    ut_weekly: dict = {}
+
+    for d in docs:
+        date = d.get("created_date")
+        if not date:
+            continue
+        try:
+            iso = datetime.strptime(date, "%Y-%m-%d").isocalendar()
+            week = f"{iso[0]}-W{iso[1]:02d}"
+        except Exception:
+            continue
+        if d.get("issue_type") == "UT":
+            ut_weekly[week] = ut_weekly.get(week, 0) + 1
+        else:
+            dev_weekly[week] = dev_weekly.get(week, 0) + 1
+
+    all_weeks = set(dev_weekly) | set(ut_weekly)
+    return sorted([
+        {"week": w, "dev_count": dev_weekly.get(w, 0), "ut_count": ut_weekly.get(w, 0)}
+        for w in all_weeks
+    ], key=lambda x: x["week"])
+
+
 @router.get("/model/{model_name}/monthly")
 async def get_model_dev_issues_monthly(model_name: str):
     matching = await _get_matching_names(model_name)

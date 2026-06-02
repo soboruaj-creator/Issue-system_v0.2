@@ -14,14 +14,16 @@
             <div v-if="devLoading" class="no-data">로딩 중...</div>
             <div v-else-if="!devIssueList.length" class="no-data">활성 이슈 없음</div>
             <div v-else class="dev-entry-list">
-              <div v-for="(iss, idx) in devIssueList" :key="idx"
-                   class="dev-entry-item" @click="openModelDetail(iss.model_name)">
-                <div class="dev-entry-top">
-                  <span class="dev-entry-model">{{ iss.model_name }}</span>
+              <div v-for="group in devIssuesByModel" :key="group.model" class="dev-model-group">
+                <div class="dev-model-header" @click="openModelDetail(group.model)">
+                  {{ group.model }}
+                  <span class="dev-model-count">{{ group.issues.length }}건</span>
+                </div>
+                <div v-for="(iss, idx) in group.issues" :key="idx" class="dev-entry-item">
                   <span class="badge" :class="'dev-s-' + iss.status">{{ iss.status }}</span>
                   <span v-if="iss.is_pending" class="badge dev-s-pending">P</span>
+                  <span class="dev-entry-title">{{ iss.title }}</span>
                 </div>
-                <div class="dev-entry-title">{{ iss.title }}</div>
               </div>
             </div>
           </div>
@@ -139,6 +141,21 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+
+const devIssuesByModel = computed(() => {
+  const groups = {}
+  for (const iss of devIssueList.value) {
+    if (!groups[iss.model_name]) groups[iss.model_name] = []
+    groups[iss.model_name].push(iss)
+  }
+  return Object.entries(groups)
+    .map(([model, issues]) => ({ model, issues }))
+    .sort((a, b) => {
+      const aOpen = a.issues.filter(i => i.status === 'open').length
+      const bOpen = b.issues.filter(i => i.status === 'open').length
+      return bOpen - aOpen || a.model.localeCompare(b.model)
+    })
+})
 import { useRouter } from 'vue-router'
 import { Bar } from 'vue-chartjs'
 import {
@@ -216,16 +233,18 @@ onMounted(async () => {
 /* Dev issues panel */
 .dev-issues-panel { height: fit-content; }
 .count-badge.dev { background: #e8eaf6; color: #1a237e; }
-.dev-entry-list { max-height: 640px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-.dev-entry-item { padding: 8px 10px; border-radius: 7px; background: #f8f9ff; cursor: pointer; transition: background 0.15s; }
-.dev-entry-item:hover { background: #e8eaf6; }
-.dev-entry-top { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-.dev-entry-model { font-weight: 700; font-size: 0.82rem; color: #1a237e; white-space: nowrap; }
+.dev-entry-list { max-height: 640px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.dev-model-group { border-radius: 8px; background: #f8f9ff; overflow: hidden; }
+.dev-model-header { font-weight: 700; font-size: 0.88rem; color: #1a237e; padding: 7px 10px; background: #e8eaf6; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.dev-model-header:hover { background: #c5cae9; }
+.dev-model-count { font-size: 0.75rem; font-weight: 500; color: #555; margin-left: auto; }
+.dev-entry-item { display: flex; align-items: flex-start; gap: 6px; padding: 5px 10px; border-bottom: 1px solid #eef0fb; }
+.dev-entry-item:last-child { border-bottom: none; }
 .dev-entry-title { font-size: 0.82rem; color: #444; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.badge.dev-s-open { background: #e3f2fd; color: #1565c0; font-size: 0.74rem; padding: 1px 6px; }
-.badge.dev-s-resolve { background: #e8f5e9; color: #2e7d32; font-size: 0.74rem; padding: 1px 6px; }
-.badge.dev-s-close { background: #f5f5f5; color: #888; font-size: 0.74rem; padding: 1px 6px; }
-.badge.dev-s-pending { background: #fff3e0; color: #e65100; font-size: 0.74rem; padding: 1px 6px; }
+.badge.dev-s-open { background: #e3f2fd; color: #1565c0; font-size: 0.74rem; padding: 1px 6px; white-space: nowrap; }
+.badge.dev-s-resolve { background: #e8f5e9; color: #2e7d32; font-size: 0.74rem; padding: 1px 6px; white-space: nowrap; }
+.badge.dev-s-close { background: #f5f5f5; color: #888; font-size: 0.74rem; padding: 1px 6px; white-space: nowrap; }
+.badge.dev-s-pending { background: #fff3e0; color: #e65100; font-size: 0.74rem; padding: 1px 6px; white-space: nowrap; }
 
 /* Stat row */
 .stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
