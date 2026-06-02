@@ -113,32 +113,15 @@
             </div>
           </div>
 
-          <!-- 비close 이슈 목록 -->
+          <!-- 이슈 리스트 (close 제외, pending+close 포함) -->
           <div v-if="!devIssues.length" class="no-chart">활성 이슈 없음</div>
-          <div v-else class="table-scroll" style="margin-top:12px">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>케이스코드</th>
-                  <th>구분</th>
-                  <th>상태</th>
-                  <th>Pending</th>
-                  <th>제목</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="iss in devIssues" :key="iss.case_code" :class="{ 'pending-row': iss.is_pending }">
-                  <td class="code-cell">{{ iss.case_code }}</td>
-                  <td><span class="badge" :class="iss.issue_type === 'UT' ? 'dev-ut' : 'dev-self'">{{ iss.issue_type }}</span></td>
-                  <td><span class="badge" :class="'dev-status-' + iss.status">{{ iss.status }}</span></td>
-                  <td>
-                    <span v-if="iss.is_pending" class="badge dev-pending">Pending</span>
-                    <span v-else class="badge dev-none">-</span>
-                  </td>
-                  <td class="title-cell">{{ iss.title }}</td>
-                </tr>
-              </tbody>
-            </table>
+          <div v-else class="issue-list">
+            <div v-for="iss in devIssues" :key="iss.case_code"
+                 class="issue-row" :class="{ 'pending-row': iss.is_pending }">
+              <span class="badge" :class="'dev-status-' + iss.status">{{ iss.status }}</span>
+              <span class="issue-title">{{ iss.title }}</span>
+              <span v-if="iss.is_pending" class="badge dev-pending">Pending</span>
+            </div>
           </div>
         </template>
       </div>
@@ -444,9 +427,10 @@ onMounted(load)
 .badge.dev-status-open { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
 .badge.dev-status-resolve { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
 .badge.dev-status-close { background: #f5f5f5; color: #757575; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
-.pending-row { background: #fffde7; }
-.code-cell { font-family: monospace; font-size: 0.8rem; color: #666; white-space: nowrap; }
-.title-cell { font-size: 0.83rem; color: #444; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.issue-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.issue-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 7px; background: #fafafa; border-left: 3px solid #e0e0e0; }
+.issue-row.pending-row { background: #fffde7; border-left-color: #ffa000; }
+.issue-title { flex: 1; font-size: 0.85rem; color: #333; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 이벤트 로그 */
 .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }

@@ -131,7 +131,7 @@ async def get_model_dev_issues(model_name: str):
             if d.get("is_pending"):
                 st["pending"] += 1
 
-    active = [d for d in all_docs if (d.get("status") or "").lower() != "close"]
+    active = [d for d in all_docs if (d.get("status") or "").lower() != "close" or d.get("is_pending")]
     active.sort(key=lambda x: (-(1 if x.get("is_pending") else 0), x.get("status", "")))
     return {"stats": stats_all, "stats_dev": stats_dev, "stats_ut": stats_ut, "issues": active}
 
