@@ -297,23 +297,20 @@ async def upload_launch_dates(file: UploadFile = File(...)):
         if not model_name or model_name == "nan":
             continue
 
-        launch_date_raw = row.iloc[1]
+        launch_date_raw = row.iloc[1] if len(row) > 1 else None
 
-        # 날짜 파싱 (datetime 객체 또는 문자열)
-        if hasattr(launch_date_raw, "strftime"):
-            launch_date_str = launch_date_raw.strftime("%Y-%m-%d")
-        elif isinstance(launch_date_raw, str):
-            launch_date_str = None
-            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d"):
-                try:
-                    launch_date_str = datetime.strptime(launch_date_raw.strip(), fmt).strftime("%Y-%m-%d")
-                    break
-                except ValueError:
-                    continue
-            if not launch_date_str:
-                continue
-        else:
-            continue
+        # 날짜 파싱 (datetime 객체 또는 문자열, 공란이면 None으로 처리)
+        launch_date_str = None
+        if pd.notna(launch_date_raw) if launch_date_raw is not None else False:
+            if hasattr(launch_date_raw, "strftime"):
+                launch_date_str = launch_date_raw.strftime("%Y-%m-%d")
+            elif isinstance(launch_date_raw, str) and launch_date_raw.strip() not in ("", "nan"):
+                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d"):
+                    try:
+                        launch_date_str = datetime.strptime(launch_date_raw.strip(), fmt).strftime("%Y-%m-%d")
+                        break
+                    except ValueError:
+                        continue
 
         # C열 마케팅명 (선택)
         marketing_name = None
@@ -322,13 +319,19 @@ async def upload_launch_dates(file: UploadFile = File(...)):
             if pd.notna(raw) and str(raw).strip() not in ("", "nan"):
                 marketing_name = str(raw).strip()
 
+        # 출시일도 마케팅명도 없으면 건너뜀
+        if not launch_date_str and not marketing_name:
+            continue
+
+        update_fields = {"model_name": model_name}
+        if launch_date_str:
+            update_fields["launch_date"] = launch_date_str
+        if marketing_name is not None:
+            update_fields["marketing_name"] = marketing_name
+
         await col.update_one(
             {"model_name": model_name},
-            {"$set": {
-                "model_name": model_name,
-                "launch_date": launch_date_str,
-                "marketing_name": marketing_name,
-            }},
+            {"$set": update_fields},
             upsert=True,
         )
         success_count += 1
