@@ -89,6 +89,20 @@
                   <span class="entry-summary">{{ e.summary || '(내용 없음)' }}</span>
                 </div>
               </div>
+
+              <!-- 수정완료 섹션 -->
+              <div class="fix-section">
+                <h3 class="fix-title">🔧 수정완료 (Resolve) <span class="count-badge fix">{{ resolvedWithFix.length }}건</span></h3>
+                <div v-if="fixLoading" class="no-data">로딩 중...</div>
+                <div v-else-if="!resolvedWithFix.length" class="no-data">해당 이슈 없음</div>
+                <div v-else class="fix-list">
+                  <div v-for="(item, idx) in resolvedWithFix" :key="idx" class="fix-item">
+                    <span class="fix-model">{{ item.model_name }}</span>
+                    <span class="fix-summary">{{ item.title || '(내용 없음)' }}</span>
+                    <span class="fix-date">{{ (item.created_date || '').slice(0, 7) }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Q-data Top5 + WoW -->
@@ -167,7 +181,7 @@ import { Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 } from 'chart.js'
-import { getDashboard, getDevIssueActiveList } from '../api'
+import { getDashboard, getDevIssueActiveList, getResolvedWithFix } from '../api'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
@@ -176,6 +190,8 @@ const data = ref(null)
 const loading = ref(false)
 const devIssueList = ref([])
 const devLoading = ref(false)
+const resolvedWithFix = ref([])
+const fixLoading = ref(false)
 const openedModels = ref(new Set())
 
 const pendingIssues = computed(() =>
@@ -253,11 +269,16 @@ const barOptions = {
 onMounted(async () => {
   loading.value = true
   devLoading.value = true
-  const [dashRes, devRes] = await Promise.allSettled([getDashboard(), getDevIssueActiveList()])
+  fixLoading.value = true
+  const [dashRes, devRes, fixRes] = await Promise.allSettled([
+    getDashboard(), getDevIssueActiveList(), getResolvedWithFix()
+  ])
   if (dashRes.status === 'fulfilled') data.value = dashRes.value.data
   if (devRes.status === 'fulfilled') devIssueList.value = devRes.value.data
+  if (fixRes.status === 'fulfilled') resolvedWithFix.value = fixRes.value.data
   loading.value = false
   devLoading.value = false
+  fixLoading.value = false
 })
 </script>
 
@@ -325,11 +346,20 @@ onMounted(async () => {
 .count-badge { font-size: 0.78rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
 .count-badge.voc { background: #e8eaf6; color: #1a237e; }
 
-.entry-list { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.entry-list { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .entry-item { display: flex; gap: 8px; align-items: flex-start; padding: 7px 8px; border-radius: 6px; background: #f8f9ff; font-size: 0.83rem; }
 .entry-model { font-weight: 700; color: #1a237e; white-space: nowrap; min-width: 72px; }
 .entry-summary { color: #444; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .no-data { color: #aaa; font-size: 0.85rem; padding: 12px 0; }
+
+.fix-section { margin-top: 14px; border-top: 1px solid #eee; padding-top: 12px; }
+.fix-title { font-size: 0.88rem; font-weight: 700; color: #1b5e20; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.count-badge.fix { background: #e8f5e9; color: #2e7d32; }
+.fix-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
+.fix-item { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-radius: 6px; background: #f1f8e9; border-left: 3px solid #66bb6a; font-size: 0.82rem; }
+.fix-model { font-weight: 700; color: #2e7d32; white-space: nowrap; min-width: 72px; }
+.fix-summary { flex: 1; color: #333; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.fix-date { font-size: 0.76rem; color: #888; white-space: nowrap; }
 
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #eee; font-size: 0.85rem; }

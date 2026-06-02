@@ -140,6 +140,25 @@
         </template>
       </div>
 
+      <!-- Members issue 현황 -->
+      <div class="card">
+        <div class="section-title">Members issue 현황</div>
+        <div v-if="!vocIssues.length" class="no-chart">활성 이슈 없음</div>
+        <div v-else class="issue-list">
+          <div v-for="iss in vocIssues" :key="iss.case_code"
+               class="issue-item" :class="{ 'pending-row': iss.is_pending }">
+            <div class="issue-row">
+              <span class="badge" :class="'voc-status-' + (iss.status || 'open')">{{ iss.is_pending && iss.status === 'close' ? 'close/Pending' : (iss.status || 'open') }}</span>
+              <span class="issue-title">{{ iss.title }}</span>
+              <span class="issue-code">{{ iss.case_code }}</span>
+            </div>
+            <div v-if="iss.is_pending && iss.pending_memo" class="pending-detail">
+              <span class="pending-memo">📝 {{ iss.pending_memo }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 모델 이벤트 로그 -->
       <div class="card">
         <div class="log-header">
@@ -193,6 +212,7 @@ import {
 import {
   getEffectiveNameMonthly, getModelNotes, createModelNote, updateModelNote, deleteModelNote,
   getModelDevIssues, getModelDevIssuesMonthly, getModelDevIssuesWeekly, getDevIssueAttachmentUrl,
+  getVocModelActive,
 } from '../api'
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Title, Tooltip, Legend)
@@ -211,6 +231,7 @@ const statsDev = ref({ total: 0, open: 0, resolve: 0, close: 0, pending: 0 })
 const statsUt = ref({ total: 0, open: 0, resolve: 0, close: 0, pending: 0 })
 const devLoading = ref(true)
 const devIssueError = ref(false)
+const vocIssues = ref([])
 
 const showWeekly = computed(() => vocMonthly.value.length === 0 && qdataMonthly.value.length === 0)
 
@@ -319,12 +340,13 @@ const chartOptions = {
 async function load() {
   loading.value = true
   devLoading.value = true
-  const [statsRes, notesRes, devRes, devMonthlyRes, devWeeklyRes] = await Promise.allSettled([
+  const [statsRes, notesRes, devRes, devMonthlyRes, devWeeklyRes, vocRes] = await Promise.allSettled([
     getEffectiveNameMonthly(modelName),
     getModelNotes(modelName),
     getModelDevIssues(modelName),
     getModelDevIssuesMonthly(modelName),
     getModelDevIssuesWeekly(modelName),
+    getVocModelActive(modelName),
   ])
   if (statsRes.status === 'fulfilled') {
     vocMonthly.value = statsRes.value.data.voc_monthly || []
@@ -341,6 +363,7 @@ async function load() {
   }
   if (devMonthlyRes.status === 'fulfilled') devMonthly.value = devMonthlyRes.value.data || []
   if (devWeeklyRes.status === 'fulfilled') devWeekly.value = devWeeklyRes.value.data || []
+  if (vocRes.status === 'fulfilled') vocIssues.value = vocRes.value.data || []
   loading.value = false
   devLoading.value = false
 }
@@ -471,6 +494,9 @@ onMounted(load)
 .badge.dev-status-open { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
 .badge.dev-status-resolve { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
 .badge.dev-status-close { background: #f5f5f5; color: #757575; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
+.badge.voc-status-open { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
+.badge.voc-status-resolve { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
+.badge.voc-status-close { background: #f5f5f5; color: #757575; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
 .issue-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
 .issue-item { border-radius: 7px; background: #fafafa; border-left: 3px solid #e0e0e0; overflow: hidden; }
 .issue-item.pending-row { background: #fffde7; border-left-color: #ffa000; }

@@ -52,14 +52,19 @@ async def upload_internal_voc(file: UploadFile = File(...)):
                     {"case_code": case_code},
                     {"$set": {
                         "model_name": voc_data["model_name"],
+                        "status": voc_data.get("status", "open"),
                         "cause": voc_data["cause"],
                         "solution": voc_data["solution"],
+                        "resolve_option": voc_data.get("resolve_option"),
                         "uploaded_date": now_str,
                     }},
                 )
             else:
                 voc_data["case_code"] = case_code
                 voc_data["uploaded_date"] = now_str
+                voc_data.setdefault("is_pending", False)
+                voc_data.setdefault("pending_memo", "")
+                voc_data.setdefault("pending_attachments", [])
                 await voc_col.insert_one(voc_data)
             success_count += 1
         except Exception as e:

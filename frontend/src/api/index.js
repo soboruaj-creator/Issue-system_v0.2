@@ -38,6 +38,13 @@ export const listVoc = (params = {}) => api.get('/voc', { params })
 export const getVocDetail = (caseCode) => api.get(`/voc/${caseCode}`)
 export const addVocComment = (caseCode, comment) =>
   api.post(`/voc/${caseCode}/comment`, { comment })
+export const searchVoc = (caseCode) =>
+  api.get('/voc/search', { params: { case_code: caseCode } })
+export const updateVocPending = (caseCode, isPending, memo) =>
+  api.post(`/voc/${caseCode}/pending`, { is_pending: isPending, memo })
+export const getResolvedWithFix = () => api.get('/voc/resolved-with-fix')
+export const getVocModelActive = (modelName) =>
+  api.get(`/voc/model-active/${encodeURIComponent(modelName)}`)
 
 // ─── 통계 ─────────────────────────────────────────────────────────────────────
 

@@ -168,6 +168,7 @@ def process_voc_row(row: pd.Series, filename: str, chipset_map: dict, app_keywor
             return str(val) if pd.notna(val) else None
 
         case_code = safe_str(row.iloc[0])
+        status_raw = safe_str(row.iloc[6])   # G열: 진행상태
         title = safe_str(row.iloc[7])
         problem = safe_str(row.iloc[12])
         reproduction = safe_str(row.iloc[13])
@@ -215,7 +216,16 @@ def process_voc_row(row: pd.Series, filename: str, chipset_map: dict, app_keywor
                 except Exception:
                     pass
 
+        s = (status_raw or "").strip().lower()
+        if s.startswith("resolve"):
+            status = "resolve"
+        elif s == "close":
+            status = "close"
+        else:
+            status = "open"
+
         return case_code, {
+            "status": status,
             "title": title,
             "model_name": model_name,
             "model_no": model_no if not watch_model else None,

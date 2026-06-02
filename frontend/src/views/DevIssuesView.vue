@@ -1,6 +1,6 @@
 <template>
   <div class="dev-issues-view">
-    <h1 class="page-title">개발이슈 Pending 관리</h1>
+    <h1 class="page-title">이슈 Pending 관리</h1>
 
     <!-- Search -->
     <div class="card search-card">
@@ -24,8 +24,9 @@
       <!-- Issue header -->
       <div class="issue-header">
         <div class="issue-meta-row">
-          <span class="badge status" :class="issue.status">{{ issue.status.toUpperCase() }}</span>
-          <span class="badge type" :class="issue.issue_type === 'UT' ? 'ut' : 'self'">{{ issue.issue_type }}</span>
+          <span class="badge status" :class="issue.status || 'open'">{{ (issue.status || 'open').toUpperCase() }}</span>
+          <span v-if="issueType === 'dev'" class="badge type" :class="issue.issue_type === 'UT' ? 'ut' : 'self'">{{ issue.issue_type }}</span>
+          <span v-else class="badge type members">Members issue</span>
           <span class="issue-code">{{ issue.case_code }}</span>
           <span v-if="issue.is_pending" class="badge pending-on">Pending</span>
         </div>
@@ -63,44 +64,44 @@
         </div>
       </div>
 
-      <hr class="divider" />
+      <!-- Attachments (개발이슈만) -->
+      <template v-if="issueType === 'dev'">
+        <hr class="divider" />
+        <div class="attach-section">
+          <div class="section-label">첨부파일</div>
 
-      <!-- Attachments -->
-      <div class="attach-section">
-        <div class="section-label">첨부파일</div>
-
-        <div v-if="issue.pending_attachments?.length" class="attach-list">
-          <div v-for="att in issue.pending_attachments" :key="att.stored_name" class="attach-item">
-            <span class="attach-icon">📎</span>
-            <span class="attach-filename">{{ att.filename }}</span>
-            <span class="attach-date">{{ att.uploaded_at }}</span>
-            <a :href="getAttachUrl(att.stored_name)" class="btn-download" target="_blank">다운로드</a>
-            <button class="btn-delete-attach" @click="deleteAttach(att.stored_name)" :disabled="saving">삭제</button>
+          <div v-if="issue.pending_attachments?.length" class="attach-list">
+            <div v-for="att in issue.pending_attachments" :key="att.stored_name" class="attach-item">
+              <span class="attach-icon">📎</span>
+              <span class="attach-filename">{{ att.filename }}</span>
+              <span class="attach-date">{{ att.uploaded_at }}</span>
+              <a :href="getAttachUrl(att.stored_name)" class="btn-download" target="_blank">다운로드</a>
+              <button class="btn-delete-attach" @click="deleteAttach(att.stored_name)" :disabled="saving">삭제</button>
+            </div>
           </div>
-        </div>
-        <div v-else class="no-attach">첨부파일 없음</div>
+          <div v-else class="no-attach">첨부파일 없음</div>
 
-        <!-- Upload zone -->
-        <div
-          class="drop-zone"
-          :class="{ 'drag-over': dragging }"
-          @dragover.prevent
-          @drop.prevent="handleDrop"
-          @dragenter="dragging = true"
-          @dragleave="dragging = false"
-        >
-          <input type="file" ref="fileInput" @change="handleFileChange" class="hidden-input" />
-          <div class="drop-content" @click="$refs.fileInput.click()">
-            <span class="drop-icon">📎</span>
-            <p>클릭하거나 파일을 드래그하세요</p>
-            <p class="sub-text">{{ uploadFile?.name || '파일 미선택' }}</p>
+          <div
+            class="drop-zone"
+            :class="{ 'drag-over': dragging }"
+            @dragover.prevent
+            @drop.prevent="handleDrop"
+            @dragenter="dragging = true"
+            @dragleave="dragging = false"
+          >
+            <input type="file" ref="fileInput" @change="handleFileChange" class="hidden-input" />
+            <div class="drop-content" @click="$refs.fileInput.click()">
+              <span class="drop-icon">📎</span>
+              <p>클릭하거나 파일을 드래그하세요</p>
+              <p class="sub-text">{{ uploadFile?.name || '파일 미선택' }}</p>
+            </div>
           </div>
+          <button class="btn-upload-attach" @click="uploadAttach" :disabled="!uploadFile || uploading">
+            {{ uploading ? '업로드 중...' : '첨부파일 업로드' }}
+          </button>
+          <div v-if="attachMsg" class="attach-msg" :class="attachMsgOk ? 'ok' : 'fail'">{{ attachMsg }}</div>
         </div>
-        <button class="btn-upload-attach" @click="uploadAttach" :disabled="!uploadFile || uploading">
-          {{ uploading ? '업로드 중...' : '첨부파일 업로드' }}
-        </button>
-        <div v-if="attachMsg" class="attach-msg" :class="attachMsgOk ? 'ok' : 'fail'">{{ attachMsg }}</div>
-      </div>
+      </template>
 
     </div>
   </div>
@@ -109,17 +110,16 @@
 <script setup>
 import { ref } from 'vue'
 import {
-  searchDevIssue,
-  updateDevIssuePending,
-  uploadDevIssueAttachment,
-  deleteDevIssueAttachment,
-  getDevIssueAttachmentUrl,
+  searchDevIssue, updateDevIssuePending,
+  uploadDevIssueAttachment, deleteDevIssueAttachment, getDevIssueAttachmentUrl,
+  searchVoc, updateVocPending,
 } from '../api'
 
 const searchCode = ref('')
 const searching = ref(false)
 const searchError = ref('')
 const issue = ref(null)
+const issueType = ref('dev')  // 'dev' | 'voc'
 const memo = ref('')
 const saving = ref(false)
 
@@ -135,12 +135,21 @@ async function search() {
   searching.value = true
   searchError.value = ''
   issue.value = null
+  const code = searchCode.value.trim()
   try {
-    const res = await searchDevIssue(searchCode.value.trim())
+    const res = await searchDevIssue(code)
     issue.value = res.data
+    issueType.value = 'dev'
     memo.value = res.data.pending_memo || ''
-  } catch (e) {
-    searchError.value = e.response?.data?.detail || '이슈를 찾을 수 없습니다.'
+    return
+  } catch {}
+  try {
+    const res = await searchVoc(code)
+    issue.value = res.data
+    issueType.value = 'voc'
+    memo.value = res.data.pending_memo || ''
+  } catch {
+    searchError.value = '개발이슈 및 Members issue 모두에서 찾을 수 없습니다.'
   } finally {
     searching.value = false
   }
@@ -150,41 +159,31 @@ async function togglePending() {
   if (!issue.value) return
   saving.value = true
   try {
-    const res = await updateDevIssuePending(issue.value.case_code, !issue.value.is_pending, memo.value)
+    const fn = issueType.value === 'dev' ? updateDevIssuePending : updateVocPending
+    const res = await fn(issue.value.case_code, !issue.value.is_pending, memo.value)
     issue.value = res.data
     memo.value = res.data.pending_memo || ''
-  } catch (e) {
-    console.error(e)
-  } finally {
-    saving.value = false
-  }
+  } catch (e) { console.error(e) }
+  finally { saving.value = false }
 }
 
 async function saveMemo() {
   if (!issue.value) return
   saving.value = true
   try {
-    const res = await updateDevIssuePending(issue.value.case_code, issue.value.is_pending, memo.value)
+    const fn = issueType.value === 'dev' ? updateDevIssuePending : updateVocPending
+    const res = await fn(issue.value.case_code, issue.value.is_pending, memo.value)
     issue.value = res.data
-  } catch (e) {
-    console.error(e)
-  } finally {
-    saving.value = false
-  }
+  } catch (e) { console.error(e) }
+  finally { saving.value = false }
 }
 
 function getAttachUrl(storedName) {
   return getDevIssueAttachmentUrl(issue.value.case_code, storedName)
 }
 
-function handleFileChange(e) {
-  uploadFile.value = e.target.files[0] || null
-}
-
-function handleDrop(e) {
-  dragging.value = false
-  uploadFile.value = e.dataTransfer.files[0] || null
-}
+function handleFileChange(e) { uploadFile.value = e.target.files[0] || null }
+function handleDrop(e) { dragging.value = false; uploadFile.value = e.dataTransfer.files[0] || null }
 
 async function uploadAttach() {
   if (!issue.value || !uploadFile.value) return
@@ -201,9 +200,7 @@ async function uploadAttach() {
   } catch (e) {
     attachMsg.value = e.response?.data?.detail || '업로드 실패'
     attachMsgOk.value = false
-  } finally {
-    uploading.value = false
-  }
+  } finally { uploading.value = false }
 }
 
 async function deleteAttach(storedName) {
@@ -211,14 +208,9 @@ async function deleteAttach(storedName) {
   saving.value = true
   try {
     await deleteDevIssueAttachment(issue.value.case_code, storedName)
-    issue.value.pending_attachments = issue.value.pending_attachments.filter(
-      a => a.stored_name !== storedName
-    )
-  } catch (e) {
-    console.error(e)
-  } finally {
-    saving.value = false
-  }
+    issue.value.pending_attachments = issue.value.pending_attachments.filter(a => a.stored_name !== storedName)
+  } catch (e) { console.error(e) }
+  finally { saving.value = false }
 }
 </script>
 
@@ -236,7 +228,6 @@ async function deleteAttach(storedName) {
 .btn-search:disabled { opacity: 0.5; cursor: not-allowed; }
 .error-msg { color: #b71c1c; font-size: 0.85rem; background: #fce4ec; padding: 8px 12px; border-radius: 6px; }
 
-/* Issue header */
 .issue-header { margin-bottom: 16px; }
 .issue-meta-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .badge { padding: 3px 10px; border-radius: 10px; font-weight: 700; font-size: 0.8rem; }
@@ -245,6 +236,7 @@ async function deleteAttach(storedName) {
 .badge.status.close { background: #f5f5f5; color: #757575; }
 .badge.type.ut { background: #fce4ec; color: #c62828; }
 .badge.type.self { background: #f3e5f5; color: #6a1b9a; }
+.badge.type.members { background: #e8eaf6; color: #1a237e; }
 .badge.pending-on { background: #fff3e0; color: #e65100; }
 .issue-code { font-size: 0.85rem; color: #888; font-family: monospace; }
 .issue-model { font-size: 1rem; font-weight: 700; color: #1a237e; margin-bottom: 4px; }
@@ -252,7 +244,6 @@ async function deleteAttach(storedName) {
 
 .divider { border: none; border-top: 1px solid #eee; margin: 16px 0; }
 
-/* Pending */
 .pending-section { display: flex; flex-direction: column; gap: 14px; }
 .pending-row { display: flex; align-items: center; gap: 12px; }
 .section-label { font-size: 0.88rem; font-weight: 600; color: #555; min-width: 80px; }
@@ -267,7 +258,6 @@ async function deleteAttach(storedName) {
 .btn-save-memo { align-self: flex-start; padding: 7px 20px; background: #1a237e; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; }
 .btn-save-memo:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Attachments */
 .attach-section { display: flex; flex-direction: column; gap: 10px; }
 .attach-list { display: flex; flex-direction: column; gap: 6px; }
 .attach-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f8f9ff; border-radius: 8px; font-size: 0.85rem; flex-wrap: wrap; }
