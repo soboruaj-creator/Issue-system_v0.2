@@ -14,17 +14,38 @@
             <div v-if="devLoading" class="no-data">로딩 중...</div>
             <div v-else-if="!devIssueList.length" class="no-data">활성 이슈 없음</div>
             <div v-else class="dev-entry-list">
+
+              <!-- 모델별 아코디언 (non-pending) -->
               <div v-for="group in devIssuesByModel" :key="group.model" class="dev-model-group">
-                <div class="dev-model-header" @click="openModelDetail(group.model)">
-                  {{ group.model }}
-                  <span class="dev-model-count">{{ group.issues.length }}건</span>
+                <div class="dev-model-header" @click="toggleModel(group.model)">
+                  <span class="dev-collapse-icon">{{ openedModels.has(group.model) ? '▾' : '▸' }}</span>
+                  <span class="dev-model-name-text" @click.stop="openModelDetail(group.model)">{{ group.model }}</span>
+                  <span class="dev-badge-wrap">
+                    <span v-if="group.openCount" class="badge dev-s-open">Open {{ group.openCount }}</span>
+                    <span v-if="group.resolveCount" class="badge dev-s-resolve">Resolve {{ group.resolveCount }}</span>
+                  </span>
                 </div>
-                <div v-for="(iss, idx) in group.issues" :key="idx" class="dev-entry-item">
-                  <span class="badge" :class="'dev-s-' + iss.status">{{ iss.status }}</span>
-                  <span v-if="iss.is_pending" class="badge dev-s-pending">P</span>
-                  <span class="dev-entry-title">{{ iss.title }}</span>
+                <div v-show="openedModels.has(group.model)" class="dev-issue-items">
+                  <div v-for="(iss, idx) in group.issues" :key="idx" class="dev-entry-item">
+                    <span class="badge" :class="'dev-s-' + iss.status">{{ iss.status }}</span>
+                    <span class="dev-entry-title">{{ iss.title || '(제목 없음)' }}</span>
+                  </div>
                 </div>
               </div>
+
+              <!-- Pending 섹션 -->
+              <div v-if="pendingIssues.length" class="dev-pending-section">
+                <div class="dev-pending-header">
+                  <span>⏸ Pending</span>
+                  <span class="badge dev-s-pending">{{ pendingIssues.length }}건</span>
+                </div>
+                <div v-for="(iss, idx) in pendingIssues" :key="'p'+idx"
+                     class="dev-entry-item pending-item" @click="openModelDetail(iss.model_name)">
+                  <span class="dev-pending-model">{{ iss.model_name }}</span>
+                  <span class="dev-entry-title">{{ iss.title || '(제목 없음)' }}</span>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
@@ -140,22 +161,44 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+
+const openedModels = ref(new Set())
+
+const pendingIssues = computed(() =>
+  devIssueList.value.filter(i => i.is_pending)
+)
 
 const devIssuesByModel = computed(() => {
   const groups = {}
   for (const iss of devIssueList.value) {
+    if (iss.is_pending) continue  // pending은 별도 섹션
+    if (!iss.title) continue      // 제목 없는 항목 제외
     if (!groups[iss.model_name]) groups[iss.model_name] = []
     groups[iss.model_name].push(iss)
   }
   return Object.entries(groups)
-    .map(([model, issues]) => ({ model, issues }))
-    .sort((a, b) => {
-      const aOpen = a.issues.filter(i => i.status === 'open').length
-      const bOpen = b.issues.filter(i => i.status === 'open').length
-      return bOpen - aOpen || a.model.localeCompare(b.model)
-    })
+    .map(([model, issues]) => ({
+      model,
+      issues,
+      openCount: issues.filter(i => i.status === 'open').length,
+      resolveCount: issues.filter(i => i.status === 'resolve').length,
+    }))
+    .sort((a, b) => b.openCount - a.openCount || a.model.localeCompare(b.model))
 })
+
+function toggleModel(model) {
+  const s = new Set(openedModels.value)
+  s.has(model) ? s.delete(model) : s.add(model)
+  openedModels.value = s
+}
+
+// open 이슈가 있는 모델만 초기 펼침
+watch(devIssuesByModel, (groups) => {
+  const s = new Set()
+  groups.forEach(g => { if (g.openCount > 0) s.add(g.model) })
+  openedModels.value = s
+}, { immediate: true })
 import { useRouter } from 'vue-router'
 import { Bar } from 'vue-chartjs'
 import {
@@ -233,14 +276,27 @@ onMounted(async () => {
 /* Dev issues panel */
 .dev-issues-panel { height: fit-content; }
 .count-badge.dev { background: #e8eaf6; color: #1a237e; }
-.dev-entry-list { max-height: 640px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-.dev-model-group { border-radius: 8px; background: #f8f9ff; overflow: hidden; }
-.dev-model-header { font-weight: 700; font-size: 0.88rem; color: #1a237e; padding: 7px 10px; background: #e8eaf6; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.dev-entry-list { display: flex; flex-direction: column; gap: 6px; }
+
+.dev-model-group { border-radius: 8px; background: #f8f9ff; overflow: hidden; border: 1px solid #e8eaf6; }
+.dev-model-header { display: flex; align-items: center; gap: 6px; padding: 7px 10px; background: #e8eaf6; cursor: pointer; user-select: none; }
 .dev-model-header:hover { background: #c5cae9; }
-.dev-model-count { font-size: 0.75rem; font-weight: 500; color: #555; margin-left: auto; }
+.dev-collapse-icon { font-size: 0.8rem; color: #666; width: 12px; flex-shrink: 0; }
+.dev-model-name-text { font-weight: 700; font-size: 0.86rem; color: #1a237e; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dev-model-name-text:hover { text-decoration: underline; }
+.dev-badge-wrap { display: flex; gap: 4px; flex-shrink: 0; }
+
+.dev-issue-items { display: flex; flex-direction: column; }
 .dev-entry-item { display: flex; align-items: flex-start; gap: 6px; padding: 5px 10px; border-bottom: 1px solid #eef0fb; }
 .dev-entry-item:last-child { border-bottom: none; }
-.dev-entry-title { font-size: 0.82rem; color: #444; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.dev-entry-title { font-size: 0.81rem; color: #444; line-height: 1.4; }
+
+.dev-pending-section { border-radius: 8px; border: 1px solid #ffe0b2; overflow: hidden; margin-top: 4px; }
+.dev-pending-header { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: #fff3e0; font-weight: 700; font-size: 0.86rem; color: #e65100; }
+.pending-item { background: #fffde7; cursor: pointer; }
+.pending-item:hover { background: #fff9c4; }
+.dev-pending-model { font-size: 0.78rem; font-weight: 700; color: #e65100; white-space: nowrap; flex-shrink: 0; }
+
 .badge.dev-s-open { background: #e3f2fd; color: #1565c0; font-size: 0.74rem; padding: 1px 6px; white-space: nowrap; }
 .badge.dev-s-resolve { background: #e8f5e9; color: #2e7d32; font-size: 0.74rem; padding: 1px 6px; white-space: nowrap; }
 .badge.dev-s-close { background: #f5f5f5; color: #888; font-size: 0.74rem; padding: 1px 6px; white-space: nowrap; }
