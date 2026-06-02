@@ -188,7 +188,7 @@ async def upload_dev_issues(file: UploadFile = File(...)):
     if not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="엑셀 파일만 업로드 가능합니다.")
     try:
-        df = await read_excel_with_drm(file)
+        df = await read_excel_with_drm(file, header=2)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
