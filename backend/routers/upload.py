@@ -152,7 +152,11 @@ async def upload_qdata(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=str(e))
 
     # J열 필터: 'GPS 수신 이상' 항목만 처리
+    unique_vals = df["j_category"].astype(str).unique().tolist()
+    print(f"[Q-data] J열 고유값 ({len(unique_vals)}개): {unique_vals[:20]}")
+    before_count = len(df)
     df = df[df["j_category"].astype(str).str.contains("GPS 수신 이상", na=False)]
+    print(f"[Q-data] 필터 전: {before_count}행 → 필터 후: {len(df)}행")
 
     # 날짜 변환
     df["service_date"] = df["service_date"].apply(convert_qdata_date)
