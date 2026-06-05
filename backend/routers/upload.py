@@ -151,6 +151,9 @@ async def upload_qdata(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # J열 필터: 'GPS 수신 이상' 항목만 처리
+    df = df[df["j_category"].astype(str).str.contains("GPS 수신 이상", na=False)]
+
     # 날짜 변환
     df["service_date"] = df["service_date"].apply(convert_qdata_date)
     df = df.dropna(subset=["service_date", "model_name"])

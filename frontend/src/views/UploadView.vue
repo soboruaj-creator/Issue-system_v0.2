@@ -141,6 +141,9 @@
         <button class="btn-upload" @click="uploadQdataWithPpm" :disabled="!qdataFile || qdataLoading">
           {{ qdataLoading ? '업로드 중...' : '업로드' }}
         </button>
+        <button class="btn-reset" @click="handleResetQData" :disabled="qdataResetting">
+          {{ qdataResetting ? '초기화 중...' : '전체 데이터 초기화' }}
+        </button>
         <div v-if="qdataResult" :class="['result', qdataResult.success ? 'success' : 'error']">
           {{ qdataResult.message }}
         </div>
@@ -151,14 +154,14 @@
 
 <script setup>
 import { ref } from 'vue'
-import { uploadVoc, uploadChipsetMapping, uploadAppKeywords, uploadQData, uploadLaunchDates, uploadDevIssues, resetDevIssues } from '../api'
+import { uploadVoc, uploadChipsetMapping, uploadAppKeywords, uploadQData, uploadLaunchDates, uploadDevIssues, resetDevIssues, resetQData } from '../api'
 
 const dragging = ref(null)
 
 const vocFile = ref(null), vocLoading = ref(false), vocResult = ref(null)
 const chipsetFile = ref(null), chipsetLoading = ref(false), chipsetResult = ref(null)
 const appFile = ref(null), appLoading = ref(false), appResult = ref(null)
-const qdataFile = ref(null), qdataLoading = ref(false), qdataResult = ref(null), qdataPpm = ref('')
+const qdataFile = ref(null), qdataLoading = ref(false), qdataResult = ref(null), qdataPpm = ref(''), qdataResetting = ref(false)
 const launchFile = ref(null), launchLoading = ref(false), launchResult = ref(null)
 const devissueFile = ref(null), devissueLoading = ref(false), devissueResult = ref(null), devissueResetting = ref(false)
 
@@ -213,6 +216,20 @@ async function handleResetDevIssues() {
     devissueResult.value = { success: false, message: '초기화 실패' }
   } finally {
     devissueResetting.value = false
+  }
+}
+
+async function handleResetQData() {
+  if (!confirm('Q-data 전체 데이터를 삭제합니다. 계속하시겠습니까?')) return
+  qdataResetting.value = true
+  qdataResult.value = null
+  try {
+    const res = await resetQData()
+    qdataResult.value = { success: true, message: `초기화 완료: ${res.data.deleted_count}건 삭제됨` }
+  } catch (e) {
+    qdataResult.value = { success: false, message: '초기화 실패' }
+  } finally {
+    qdataResetting.value = false
   }
 }
 

@@ -123,7 +123,7 @@ async def read_excel_with_drm(file: UploadFile, header: int = 0) -> pd.DataFrame
 
 async def read_qdata_excel_with_drm(file: UploadFile) -> pd.DataFrame:
     """Q-data 전용 엑셀 읽기 (9행부터, 특정 열만)"""
-    usecols = [5, 12, 15, 16, 19, 25, 29, 43, 50, 51]  # F,M,P,Q,T,Z,AD,AR,BE,BF
+    usecols = [5, 9, 12, 15, 16, 19, 25, 29, 43, 50, 51]  # F,J,M,P,Q,T,Z,AD,AR,BE,BF
     content = await file.read()
     last_error = None
 
@@ -173,6 +173,7 @@ async def read_qdata_excel_with_drm(file: UploadFile) -> pd.DataFrame:
 def _rename_qdata_columns(df: pd.DataFrame) -> pd.DataFrame:
     df.columns = [
         "service_date",
+        "j_category",
         "process_type",
         "repair_name",
         "repair_detail",
