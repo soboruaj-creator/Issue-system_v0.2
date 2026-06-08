@@ -60,7 +60,7 @@
               <div class="stat-value voc">{{ data.members_issue.yesterday_count.toLocaleString() }}<span class="stat-unit">건</span></div>
             </div>
             <div class="card stat-card">
-              <div class="stat-label">Q-data <span class="stat-date">{{ data.yesterday }}</span></div>
+              <div class="stat-label">Q-data <span class="stat-date">{{ data.qdata_date || data.yesterday }}</span></div>
               <div class="stat-value qdata">{{ data.qdata.yesterday_count.toLocaleString() }}<span class="stat-unit">건</span></div>
             </div>
             <div class="card stat-card upload-card">
@@ -108,7 +108,7 @@
             <!-- Q-data Top5 + WoW -->
             <div class="col-right">
               <div class="card">
-                <h2 class="section-title">Q-data Top 5 <span class="stat-date">{{ data.yesterday }}</span></h2>
+                <h2 class="section-title">Q-data Top 5 <span class="stat-date">{{ data.qdata_date || data.yesterday }}</span></h2>
                 <div v-if="!data.qdata.top5_yesterday.length" class="no-data">데이터 없음</div>
                 <table v-else class="table">
                   <thead><tr><th>순위</th><th>모델명</th><th>건수</th></tr></thead>
@@ -139,9 +139,9 @@
             </div>
           </div>
 
-          <!-- 4주 추이 차트 -->
+          <!-- 10주 추이 차트 -->
           <div class="card mt-16">
-            <h2 class="section-title">최근 4주 추이</h2>
+            <h2 class="section-title">최근 10주 추이</h2>
             <div class="chart-wrap">
               <Bar v-if="trendChartData" :data="trendChartData" :options="barOptions" />
             </div>

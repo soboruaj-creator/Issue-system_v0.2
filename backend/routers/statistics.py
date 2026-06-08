@@ -90,6 +90,14 @@ async def get_dashboard():
     yesterday = today_dt - timedelta(days=1)
     yest_str = yesterday.strftime("%Y-%m-%d")
 
+    # Q-data 유효 날짜: 어제 데이터가 없으면 가장 최근 데이터 날짜 사용 (주말/공휴일 대응)
+    recent_qdata = await qdata_col.find_one(
+        {"service_date": {"$lte": yest_str}},
+        sort=[("service_date", -1)],
+        projection={"service_date": 1, "_id": 0},
+    )
+    effective_qdata_date = recent_qdata["service_date"] if recent_qdata else yest_str
+
     # WoW 비교: 최근 7일 vs 이전 7일
     d7_start = (yesterday - timedelta(days=6)).strftime("%Y-%m-%d")
     d7_prev_start = (yesterday - timedelta(days=13)).strftime("%Y-%m-%d")
@@ -98,10 +106,10 @@ async def get_dashboard():
     anomaly_start = (yesterday - timedelta(days=7)).strftime("%Y-%m-%d")
     anomaly_end = (yesterday - timedelta(days=1)).strftime("%Y-%m-%d")
 
-    # 4주 추이 (월~일 기준)
+    # 10주 추이 (월~일 기준)
     monday = today_dt - timedelta(days=today_dt.weekday())
     week_ranges, week_labels = [], []
-    for i in range(3, -1, -1):
+    for i in range(9, -1, -1):
         ws = monday - timedelta(weeks=i)
         we = ws + timedelta(days=6)
         week_ranges.append((ws.strftime("%Y-%m-%d"), we.strftime("%Y-%m-%d")))
@@ -110,7 +118,7 @@ async def get_dashboard():
     # 모든 쿼리 병렬 실행
     results = await asyncio.gather(
         qdata_col.aggregate([
-            {"$match": {"service_date": yest_str}},
+            {"$match": {"service_date": effective_qdata_date}},
             {"$group": {"_id": "$model_name", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}}, {"$limit": 5},
             {"$project": {"model_name": "$_id", "count": 1, "_id": 0}},
@@ -132,7 +140,7 @@ async def get_dashboard():
             {"$match": {"created_date": {"$gte": anomaly_start, "$lte": anomaly_end + "~"}}},
             {"$group": {"_id": "$model_name", "count": {"$sum": 1}}},
         ]).to_list(None),
-        qdata_col.count_documents({"service_date": yest_str}),
+        qdata_col.count_documents({"service_date": effective_qdata_date}),
         *[voc_col.count_documents({"created_date": {"$gte": ws, "$lte": we + "~"}}) for ws, we in week_ranges],
         *[qdata_col.count_documents({"service_date": {"$gte": ws, "$lte": we}}) for ws, we in week_ranges],
         voc_col.find_one({}, sort=[("uploaded_date", -1)], projection={"uploaded_date": 1, "_id": 0}),
@@ -141,15 +149,19 @@ async def get_dashboard():
 
     (qdata_top5, qdata_this_w, qdata_prev_w, voc_yest_docs, voc_7d_docs,
      qdata_yest_count, *rest) = results
-    trend_voc = rest[:4]
-    trend_qdata = rest[4:8]
-    voc_last_doc, qdata_last_doc = rest[8], rest[9]
+    n_weeks = len(week_ranges)
+    trend_voc = rest[:n_weeks]
+    trend_qdata = rest[n_weeks:n_weeks * 2]
+    voc_last_doc, qdata_last_doc = rest[n_weeks * 2], rest[n_weeks * 2 + 1]
+
+    # 마케팅명 매핑
+    mmap = await _get_marketing_map()
 
     # Members issue 어제 리스트 + 요약
     voc_entries = [
         {
             "case_code": d.get("case_code"),
-            "model_name": d.get("model_name") or "-",
+            "model_name": mmap.get(d.get("model_name"), d.get("model_name")) or "-",
             "summary": _extract_summary(d.get("problem"), d.get("original_content"), d.get("reproduction_path")),
         }
         for d in voc_yest_docs
@@ -166,24 +178,31 @@ async def get_dashboard():
         avg = d7_avg_map.get(model, 0)
         if (avg > 0 and ycount >= avg * 2 and ycount >= 2) or (avg == 0 and ycount >= 5):
             anomalies.append({
-                "model_name": model,
+                "model_name": mmap.get(model, model),
                 "yesterday_count": ycount,
                 "avg_7d": round(avg, 1),
                 "ratio": round(ycount / avg, 1) if avg > 0 else None,
             })
     anomalies.sort(key=lambda x: x["yesterday_count"], reverse=True)
 
-    # Q-data WoW Top5
+    # Q-data Top5 마케팅명 적용
+    qdata_top5 = [
+        {"model_name": mmap.get(d["model_name"], d["model_name"]), "count": d["count"]}
+        for d in qdata_top5
+    ]
+
+    # Q-data WoW Top5 + 마케팅명
     this_map = {d["_id"]: d["count"] for d in qdata_this_w if d["_id"]}
     prev_map = {d["_id"]: d["count"] for d in qdata_prev_w if d["_id"]}
     wow = sorted(
-        [{"model_name": m, "this_week": c, "last_week": prev_map.get(m, 0), "diff": c - prev_map.get(m, 0)}
+        [{"model_name": mmap.get(m, m), "this_week": c, "last_week": prev_map.get(m, 0), "diff": c - prev_map.get(m, 0)}
          for m, c in this_map.items() if c - prev_map.get(m, 0) > 0],
         key=lambda x: x["diff"], reverse=True
     )[:5]
 
     return {
         "yesterday": yest_str,
+        "qdata_date": effective_qdata_date,
         "members_issue": {
             "yesterday_count": len(voc_entries),
             "entries": voc_entries,
@@ -435,8 +454,24 @@ async def get_qdata_model_statistics(
         {"$project": {"model_name": "$_id", "count": 1, "_id": 0}},
     ]
     result = await col.aggregate(pipeline).to_list(None)
+
+    # ppm_data에서 모델별 최신 PPM 조회 (raw model name 기준)
+    ppm_col = get_collection("ppm_data")
+    ppm_docs = await ppm_col.aggregate([
+        {"$sort": {"upload_date": -1, "activation_day": -1}},
+        {"$group": {"_id": "$model_name", "ppm": {"$first": "$ppm"}}},
+    ]).to_list(None)
+    ppm_map = {d["_id"]: d["ppm"] for d in ppm_docs if d["_id"]}
+
+    for item in result:
+        item["ppm"] = ppm_map.get(item["model_name"])
+
     mmap = await _get_marketing_map()
-    return _apply_marketing(result, mmap)
+    result = _apply_marketing(result, mmap)
+
+    # PPM 내림차순 정렬 (PPM 없는 항목은 뒤로)
+    result.sort(key=lambda x: (x["ppm"] is None, -(x["ppm"] or 0), -x["count"]))
+    return result
 
 
 @router.get("/qdata/weekly")
