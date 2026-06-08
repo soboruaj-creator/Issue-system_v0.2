@@ -48,11 +48,15 @@ async def upload_internal_voc(file: UploadFile = File(...)):
         try:
             existing = await voc_col.find_one({"case_code": case_code})
             if existing:
+                # close 상태는 open/resolve로 되돌릴 수 없음
+                new_status = voc_data.get("status", "open")
+                if existing.get("status") == "close":
+                    new_status = "close"
                 await voc_col.update_one(
                     {"case_code": case_code},
                     {"$set": {
                         "model_name": voc_data["model_name"],
-                        "status": voc_data.get("status", "open"),
+                        "status": new_status,
                         "cause": voc_data["cause"],
                         "solution": voc_data["solution"],
                         "resolve_option": voc_data.get("resolve_option"),
@@ -256,10 +260,12 @@ async def upload_dev_issues(file: UploadFile = File(...)):
 
             existing = await col.find_one({"case_code": case_code})
             if existing:
+                # close 상태는 open/resolve로 되돌릴 수 없음
+                final_status = status_norm if existing.get("status") != "close" else "close"
                 update_fields = {
                     "title": title,
                     "model_name": model_name,
-                    "status": status_norm,
+                    "status": final_status,
                     "issue_type": issue_type,
                     "uploaded_date": now_str,
                 }
