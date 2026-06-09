@@ -167,16 +167,36 @@ async def upload_qdata(file: UploadFile = File(...), ppm: float = Form(None)):
     df = df.dropna(subset=["service_date", "model_name"])
 
     col = get_collection("q_data")
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    today = datetime.now().date()
+    now_str = today.strftime("%Y-%m-%d %H:%M:%S")
 
-    # PPM 값 저장 (입력된 경우)
-    if ppm is not None:
-        settings_col = get_collection("qdata_settings")
-        await settings_col.update_one(
-            {"key": "last_ppm"},
-            {"$set": {"key": "last_ppm", "value": ppm, "updated_at": now_str}},
-            upsert=True,
-        )
+    # PPM 저장: 모델 출시일 기준 개통일차 계산 후 ppm_data에 저장
+    if ppm is not None and not df.empty:
+        model_name = df["model_name"].dropna().mode()
+        model_name = model_name.iloc[0] if len(model_name) > 0 else None
+        if model_name:
+            launch_col = get_collection("launch_dates")
+            launch_doc = await launch_col.find_one({"model_name": model_name})
+            if launch_doc and launch_doc.get("launch_date"):
+                try:
+                    launch_date = datetime.strptime(launch_doc["launch_date"], "%Y-%m-%d").date()
+                    activation_day = (today - launch_date).days
+                    ppm_col = get_collection("ppm_data")
+                    await ppm_col.update_one(
+                        {"model_name": model_name, "activation_day": activation_day},
+                        {"$set": {
+                            "model_name": model_name,
+                            "activation_day": activation_day,
+                            "ppm": ppm,
+                            "upload_date": today.strftime("%Y-%m-%d"),
+                        }},
+                        upsert=True,
+                    )
+                    print(f"[Q-data] PPM 저장: {model_name} 개통 {activation_day}일차 = {ppm}")
+                except Exception as e:
+                    print(f"[Q-data] PPM 저장 실패: {e}")
+            else:
+                print(f"[Q-data] 출시일 없음: {model_name} → PPM 저장 건너뜀")
 
     success_count = duplicate_count = error_count = 0
 
