@@ -22,7 +22,8 @@ async def get_launch_models():
     """마케팅명으로 그룹핑된 모델 목록 반환"""
     col = get_collection("launch_dates")
     docs = await col.find(
-        {}, {"_id": 0, "model_name": 1, "launch_date": 1, "marketing_name": 1}
+        {"launch_date": {"$exists": True, "$ne": None}},
+        {"_id": 0, "model_name": 1, "launch_date": 1, "marketing_name": 1}
     ).to_list(None)
 
     eff_map = _build_eff_map(docs)
