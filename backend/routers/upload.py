@@ -1,6 +1,6 @@
 """업로드 라우터"""
 import re
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from datetime import datetime
 from database import get_collection
 from services.excel_service import read_excel_with_drm, read_qdata_excel_with_drm
@@ -149,7 +149,7 @@ async def upload_app_keywords(file: UploadFile = File(...)):
 
 
 @router.post("/qdata")
-async def upload_qdata(file: UploadFile = File(...)):
+async def upload_qdata(file: UploadFile = File(...), ppm: float = Form(None)):
     try:
         df = await read_qdata_excel_with_drm(file)
     except Exception as e:
@@ -168,6 +168,15 @@ async def upload_qdata(file: UploadFile = File(...)):
 
     col = get_collection("q_data")
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # PPM 값 저장 (입력된 경우)
+    if ppm is not None:
+        settings_col = get_collection("qdata_settings")
+        await settings_col.update_one(
+            {"key": "last_ppm"},
+            {"$set": {"key": "last_ppm", "value": ppm, "updated_at": now_str}},
+            upsert=True,
+        )
 
     success_count = duplicate_count = error_count = 0
 

@@ -453,24 +453,21 @@ async def get_qdata_model_statistics(
         {"$sort": {"count": -1}},
         {"$project": {"model_name": "$_id", "count": 1, "_id": 0}},
     ]
-    result = await col.aggregate(pipeline).to_list(None)
+    result, settings_doc = await asyncio.gather(
+        col.aggregate(pipeline).to_list(None),
+        get_collection("qdata_settings").find_one({"key": "last_ppm"}),
+    )
 
-    # ppm_data에서 모델별 최신 PPM 조회 (raw model name 기준)
-    ppm_col = get_collection("ppm_data")
-    ppm_docs = await ppm_col.aggregate([
-        {"$sort": {"upload_date": -1, "activation_day": -1}},
-        {"$group": {"_id": "$model_name", "ppm": {"$first": "$ppm"}}},
-    ]).to_list(None)
-    ppm_map = {d["_id"]: d["ppm"] for d in ppm_docs if d["_id"]}
+    last_ppm = settings_doc["value"] if settings_doc else None
 
     for item in result:
-        item["ppm"] = ppm_map.get(item["model_name"])
+        item["ppm"] = last_ppm
 
     mmap = await _get_marketing_map()
     result = _apply_marketing(result, mmap)
 
-    # PPM 내림차순 정렬 (PPM 없는 항목은 뒤로)
-    result.sort(key=lambda x: (x["ppm"] is None, -(x["ppm"] or 0), -x["count"]))
+    # 건수 내림차순 정렬 (PPM은 전체 공통 값)
+    result.sort(key=lambda x: -x["count"])
     return result
 
 
