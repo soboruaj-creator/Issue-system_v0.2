@@ -81,6 +81,53 @@ def _extract_summary(problem, original_content, reproduction) -> str:
     return ""
 
 
+@router.get("/debug-dates")
+async def debug_dates():
+    """VOC created_date 분포 확인용 디버그 엔드포인트"""
+    col = get_collection("internal_voc")
+    today_dt = datetime.now().date()
+    monday = today_dt - timedelta(days=today_dt.weekday())
+
+    week_ranges, week_labels = [], []
+    for i in range(9, -1, -1):
+        ws = monday - timedelta(weeks=i)
+        we = ws + timedelta(days=6)
+        week_ranges.append((ws.strftime("%Y-%m-%d"), we.strftime("%Y-%m-%d")))
+        week_labels.append("이번주" if i == 0 else "지난주" if i == 1 else f"{i+1}주전")
+
+    total = await col.count_documents({})
+    with_date = await col.count_documents({"created_date": {"$exists": True, "$ne": None}})
+    null_date = total - with_date
+
+    import asyncio as _asyncio
+    counts = await _asyncio.gather(*[
+        col.count_documents({"created_date": {"$gte": ws, "$lte": we + "~"}})
+        for ws, we in week_ranges
+    ])
+
+    sample_null = await col.find(
+        {"$or": [{"created_date": None}, {"created_date": {"$exists": False}}]},
+        {"_id": 0, "case_code": 1, "created_date": 1, "model_name": 1},
+    ).limit(3).to_list(None)
+
+    sample_dated = await col.find(
+        {"created_date": {"$exists": True, "$ne": None}},
+        {"_id": 0, "case_code": 1, "created_date": 1},
+    ).sort("created_date", -1).limit(3).to_list(None)
+
+    return {
+        "total_voc": total,
+        "with_created_date": with_date,
+        "null_created_date": null_date,
+        "weekly_counts": [
+            {"label": lbl, "week": ws, "count": c}
+            for lbl, (ws, _), c in zip(week_labels, week_ranges, counts)
+        ],
+        "sample_no_date": sample_null,
+        "sample_with_date": sample_dated,
+    }
+
+
 @router.get("/dashboard")
 async def get_dashboard():
     voc_col = get_collection("internal_voc")

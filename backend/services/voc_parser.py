@@ -161,6 +161,47 @@ def convert_qdata_date(date_str) -> Optional[str]:
         return None
 
 
+def _parse_date_cell(val) -> Optional[str]:
+    """Excel 날짜 셀 값을 YYYY-MM-DD 문자열로 변환. 실패 시 None 반환."""
+    if val is None:
+        return None
+    try:
+        if pd.isna(val):
+            return None
+    except (TypeError, ValueError):
+        pass
+    if hasattr(val, "strftime"):
+        try:
+            return val.strftime("%Y-%m-%d")
+        except (ValueError, TypeError):
+            return None
+    if isinstance(val, (int, float)):
+        try:
+            ts = pd.Timestamp("1899-12-30") + pd.Timedelta(days=int(val))
+            result = ts.strftime("%Y-%m-%d")
+            if "2000-" <= result <= "2031-":
+                return result
+        except Exception:
+            pass
+        return None
+    if isinstance(val, str):
+        s = val.strip()
+        if not s or s.lower() in ("nan", "none", "-", ""):
+            return None
+        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d"):
+            try:
+                return datetime.strptime(s[:10], fmt).strftime("%Y-%m-%d")
+            except ValueError:
+                continue
+        try:
+            ts = pd.to_datetime(s, dayfirst=False, errors="coerce")
+            if pd.notna(ts):
+                return ts.strftime("%Y-%m-%d")
+        except Exception:
+            pass
+    return None
+
+
 def process_voc_row(row: pd.Series, filename: str, chipset_map: dict, app_keywords: list) -> tuple:
     """단일 VOC 행 처리, (case_code, data_dict, is_unmapped) 반환"""
     try:
@@ -200,6 +241,10 @@ def process_voc_row(row: pd.Series, filename: str, chipset_map: dict, app_keywor
         search_text = f"{problem or ''} {original_content or ''}"
         third_party_app = _detect_third_party_app(search_text, app_keywords)
 
+        # 날짜 추출 순서:
+        # 1. 케이스코드 (P + 6자리 YYMMDD)
+        # 2. 엑셀 B열 또는 C열 (등록일 컬럼)
+        # 3. 파일명 8자리 숫자 (YYYYMMDD)
         created_date = None
         if case_code and case_code.startswith("P"):
             date_match = re.search(r"P(\d{6})", case_code)
@@ -208,6 +253,12 @@ def process_voc_row(row: pd.Series, filename: str, chipset_map: dict, app_keywor
                     created_date = datetime.strptime(date_match.group(1), "%y%m%d").strftime("%Y-%m-%d")
                 except Exception:
                     pass
+        if not created_date:
+            for col_idx in (1, 2):
+                if col_idx < len(row):
+                    created_date = _parse_date_cell(row.iloc[col_idx])
+                    if created_date:
+                        break
         if not created_date:
             date_match = re.search(r"(\d{8})", filename)
             if date_match:
