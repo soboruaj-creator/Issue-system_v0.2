@@ -444,4 +444,12 @@ async def upload_launch_dates(file: UploadFile = File(...)):
         )
         success_count += 1
 
-    return {"success": True, "message": f"{success_count}개 모델 출시일 등록 완료"}
+    date_count = await get_collection("launch_dates").count_documents(
+        {"launch_date": {"$exists": True, "$ne": None}}
+    )
+    return {
+        "success": True,
+        "message": f"{success_count}개 모델 처리 완료 (출시일 있는 모델 DB 총 {date_count}개)",
+        "processed": success_count,
+        "total_with_date": date_count,
+    }

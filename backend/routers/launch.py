@@ -38,6 +38,22 @@ async def get_launch_models():
     return sorted(result, key=lambda x: x["effective_name"])
 
 
+@router.get("/debug")
+async def debug_launch_dates():
+    """MongoDB launch_dates 컬렉션 상태 확인용 디버그 엔드포인트"""
+    col = get_collection("launch_dates")
+    total = await col.count_documents({})
+    with_date = await col.count_documents({"launch_date": {"$exists": True, "$ne": None}})
+    with_marketing = await col.count_documents({"marketing_name": {"$exists": True, "$ne": None}})
+    sample = await col.find({}, {"_id": 0}).limit(5).to_list(None)
+    return {
+        "total_docs": total,
+        "docs_with_launch_date": with_date,
+        "docs_with_marketing_name": with_marketing,
+        "sample": sample,
+    }
+
+
 @router.get("/compare")
 async def compare_by_activation_day(models: str = Query(...)):
     """

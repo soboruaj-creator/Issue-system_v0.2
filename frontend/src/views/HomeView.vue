@@ -376,7 +376,7 @@ onMounted(async () => {
 .badge.up { background: #e8f5e9; color: #2e7d32; }
 .badge.warn { background: #fff3e0; color: #e65100; }
 
-.chart-wrap { height: 260px; }
+.chart-wrap { height: 260px; position: relative; }
 .mt-12 { margin-top: 12px; }
 .mt-16 { margin-top: 16px; }
 
