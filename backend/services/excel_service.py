@@ -6,14 +6,14 @@ import pandas as pd
 from fastapi import UploadFile
 
 
-async def read_excel_with_drm(file: UploadFile) -> pd.DataFrame:
+async def read_excel_with_drm(file: UploadFile, header: int = 0) -> pd.DataFrame:
     """DRM 우회 엑셀 읽기 - 8가지 방법 시도"""
     content = await file.read()
     last_error = None
 
     # 방법 1: openpyxl (메모리)
     try:
-        df = pd.read_excel(io.BytesIO(content), engine="openpyxl")
+        df = pd.read_excel(io.BytesIO(content), engine="openpyxl", header=header)
         print("DRM 처리 성공: openpyxl (메모리)")
         return df
     except Exception as e:
@@ -21,7 +21,7 @@ async def read_excel_with_drm(file: UploadFile) -> pd.DataFrame:
 
     # 방법 2: xlrd (메모리)
     try:
-        df = pd.read_excel(io.BytesIO(content), engine="xlrd")
+        df = pd.read_excel(io.BytesIO(content), engine="xlrd", header=header)
         print("DRM 처리 성공: xlrd (메모리)")
         return df
     except Exception as e:
@@ -29,7 +29,7 @@ async def read_excel_with_drm(file: UploadFile) -> pd.DataFrame:
 
     # 방법 3: pyxlsb (메모리)
     try:
-        df = pd.read_excel(io.BytesIO(content), engine="pyxlsb")
+        df = pd.read_excel(io.BytesIO(content), engine="pyxlsb", header=header)
         print("DRM 처리 성공: pyxlsb (메모리)")
         return df
     except Exception as e:
@@ -41,7 +41,7 @@ async def read_excel_with_drm(file: UploadFile) -> pd.DataFrame:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
             tmp.write(content)
             temp_path = tmp.name
-        df = pd.read_excel(temp_path, engine="openpyxl")
+        df = pd.read_excel(temp_path, engine="openpyxl", header=header)
         print("DRM 처리 성공: openpyxl (임시 파일)")
         return df
     except Exception as e:
@@ -59,7 +59,7 @@ async def read_excel_with_drm(file: UploadFile) -> pd.DataFrame:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xls") as tmp:
             tmp.write(content)
             temp_path = tmp.name
-        df = pd.read_excel(temp_path, engine="xlrd")
+        df = pd.read_excel(temp_path, engine="xlrd", header=header)
         print("DRM 처리 성공: xlrd (임시 파일)")
         return df
     except Exception as e:
@@ -77,7 +77,7 @@ async def read_excel_with_drm(file: UploadFile) -> pd.DataFrame:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsb") as tmp:
             tmp.write(content)
             temp_path = tmp.name
-        df = pd.read_excel(temp_path, engine="pyxlsb")
+        df = pd.read_excel(temp_path, engine="pyxlsb", header=header)
         print("DRM 처리 성공: pyxlsb (임시 파일)")
         return df
     except Exception as e:
@@ -91,7 +91,7 @@ async def read_excel_with_drm(file: UploadFile) -> pd.DataFrame:
 
     # 방법 7: 기본 엔진 (메모리)
     try:
-        df = pd.read_excel(io.BytesIO(content))
+        df = pd.read_excel(io.BytesIO(content), header=header)
         print("DRM 처리 성공: 기본 엔진 (메모리)")
         return df
     except Exception as e:
@@ -103,7 +103,7 @@ async def read_excel_with_drm(file: UploadFile) -> pd.DataFrame:
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(content)
             temp_path = tmp.name
-        df = pd.read_excel(temp_path)
+        df = pd.read_excel(temp_path, header=header)
         print("DRM 처리 성공: 기본 엔진 (임시 파일)")
         return df
     except Exception as e:
@@ -123,7 +123,7 @@ async def read_excel_with_drm(file: UploadFile) -> pd.DataFrame:
 
 async def read_qdata_excel_with_drm(file: UploadFile) -> pd.DataFrame:
     """Q-data 전용 엑셀 읽기 (9행부터, 특정 열만)"""
-    usecols = [5, 12, 15, 16, 19, 25, 29, 43, 50, 51]  # F,M,P,Q,T,Z,AD,AR,BE,BF
+    usecols = [5, 9, 12, 15, 16, 19, 25, 29, 43, 50, 51]  # F,J,M,P,Q,T,Z,AD,AR,BE,BF
     content = await file.read()
     last_error = None
 
@@ -173,6 +173,7 @@ async def read_qdata_excel_with_drm(file: UploadFile) -> pd.DataFrame:
 def _rename_qdata_columns(df: pd.DataFrame) -> pd.DataFrame:
     df.columns = [
         "service_date",
+        "j_category",
         "process_type",
         "repair_name",
         "repair_detail",

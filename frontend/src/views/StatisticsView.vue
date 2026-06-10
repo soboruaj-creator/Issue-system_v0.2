@@ -46,11 +46,12 @@
           <Bar v-if="qdataModelChartData" :data="qdataModelChartData" :options="barOptions" />
         </div>
         <table class="table mt-16">
-          <thead><tr><th>순위</th><th>모델명</th><th>건수</th><th>비율</th></tr></thead>
+          <thead><tr><th>순위</th><th>모델명</th><th>PPM</th><th>건수</th><th>비율</th></tr></thead>
           <tbody>
             <tr v-for="(item, idx) in qdataModelStats" :key="item.model_name">
               <td>{{ idx + 1 }}</td>
               <td>{{ item.model_name }}</td>
+              <td>{{ item.ppm != null ? item.ppm.toFixed(1) : '-' }}</td>
               <td><span class="badge qdata">{{ item.count }}</span></td>
               <td>{{ totalQdataModel ? (item.count / totalQdataModel * 100).toFixed(1) : 0 }}%</td>
             </tr>

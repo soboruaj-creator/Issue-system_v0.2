@@ -10,6 +10,7 @@
       <li><RouterLink to="/voc" :class="{ active: route.path === '/voc' }">M-issue</RouterLink></li>
       <li><RouterLink to="/qdata" :class="{ active: route.path === '/qdata' }">Q-data</RouterLink></li>
       <li><RouterLink to="/launch-compare" :class="{ active: route.path === '/launch-compare' }">모델별 비교 분석</RouterLink></li>
+      <li><RouterLink to="/dev-issues" :class="{ active: route.path === '/dev-issues' }">개발이슈</RouterLink></li>
       <li><RouterLink to="/settings" :class="{ active: route.path === '/settings' }">설정</RouterLink></li>
     </ul>
   </nav>

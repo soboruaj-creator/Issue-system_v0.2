@@ -1,8 +1,7 @@
 """VOC CRUD 라우터"""
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
-from bson import ObjectId
 from database import get_collection
 
 router = APIRouter(prefix="/api/voc", tags=["voc"])
@@ -80,6 +79,74 @@ async def add_comment(case_code: str, body: dict):
     result = await col.insert_one(doc)
     doc["_id"] = str(result.inserted_id)
     return doc
+
+
+@router.get("/resolved-with-fix")
+async def get_resolved_with_fix():
+    from routers.statistics import _get_marketing_map
+    col = get_collection("internal_voc")
+    docs = await col.find(
+        {"resolve_option": {"$regex": "수정완료", "$options": "i"},
+         "status": "resolve"},
+        {"_id": 0, "case_code": 1, "model_name": 1, "title": 1, "created_date": 1},
+    ).sort("created_date", -1).to_list(None)
+    mmap = await _get_marketing_map()
+    for d in docs:
+        raw = d.get("model_name") or "미분류"
+        d["model_name"] = mmap.get(raw) or raw
+    return docs
+
+
+@router.get("/search")
+async def search_voc(case_code: str):
+    col = get_collection("internal_voc")
+    doc = await col.find_one({"case_code": case_code}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="이슈를 찾을 수 없습니다.")
+    return doc
+
+
+@router.post("/{case_code}/pending")
+async def update_voc_pending(case_code: str, body: dict):
+    col = get_collection("internal_voc")
+    if not await col.find_one({"case_code": case_code}):
+        raise HTTPException(status_code=404, detail="이슈를 찾을 수 없습니다.")
+    await col.update_one(
+        {"case_code": case_code},
+        {"$set": {"is_pending": body.get("is_pending", False), "pending_memo": body.get("memo", "")}},
+    )
+    return await col.find_one({"case_code": case_code}, {"_id": 0})
+
+
+@router.get("/model-active/{model_name}")
+async def get_voc_model_active(model_name: str):
+    from routers.statistics import _get_marketing_map
+    mmap = await _get_marketing_map()
+    matching = {model_name}
+    for raw, mkt in mmap.items():
+        if mkt == model_name:
+            matching.add(raw)
+        if raw == model_name and mkt:
+            matching.add(mkt)
+
+    names = [n for n in matching if n is not None and n != "미분류"]
+    include_null = None in matching or "미분류" in matching
+    if include_null and names:
+        query = {"$or": [{"model_name": {"$in": names}}, {"model_name": None}, {"model_name": ""}]}
+    elif include_null:
+        query = {"$or": [{"model_name": None}, {"model_name": ""}]}
+    else:
+        query = {"model_name": {"$in": names}}
+
+    col = get_collection("internal_voc")
+    docs = await col.find(
+        query,
+        {"_id": 0, "case_code": 1, "title": 1, "status": 1, "is_pending": 1, "pending_memo": 1, "created_date": 1},
+    ).to_list(None)
+
+    active = [d for d in docs if (d.get("status") or "open") != "close" or d.get("is_pending")]
+    active.sort(key=lambda x: (-(1 if x.get("is_pending") else 0), x.get("status") or "open"))
+    return active
 
 
 @router.get("/by-model/{model_name}")

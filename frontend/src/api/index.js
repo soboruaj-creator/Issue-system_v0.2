@@ -38,6 +38,13 @@ export const listVoc = (params = {}) => api.get('/voc', { params })
 export const getVocDetail = (caseCode) => api.get(`/voc/${caseCode}`)
 export const addVocComment = (caseCode, comment) =>
   api.post(`/voc/${caseCode}/comment`, { comment })
+export const searchVoc = (caseCode) =>
+  api.get('/voc/search', { params: { case_code: caseCode } })
+export const updateVocPending = (caseCode, isPending, memo) =>
+  api.post(`/voc/${caseCode}/pending`, { is_pending: isPending, memo })
+export const getResolvedWithFix = () => api.get('/voc/resolved-with-fix')
+export const getVocModelActive = (modelName) =>
+  api.get(`/voc/model-active/${encodeURIComponent(modelName)}`)
 
 // ─── 통계 ─────────────────────────────────────────────────────────────────────
 
@@ -145,3 +152,34 @@ export const uploadLaunchDates = (file) => {
   form.append('file', file)
   return api.post('/upload/launch_dates', form)
 }
+
+// ─── 개발이슈 ──────────────────────────────────────────────────────────────────
+
+export const uploadDevIssues = (file) => {
+  const form = new FormData()
+  form.append('file', file)
+  return api.post('/upload/dev_issues', form)
+}
+
+export const getDevIssueDashboard = () => api.get('/dev-issues/dashboard')
+export const getDevIssueActiveList = () => api.get('/dev-issues/active-list')
+export const getModelDevIssues = (modelName) =>
+  api.get(`/dev-issues/model/${encodeURIComponent(modelName)}`)
+export const getModelDevIssuesMonthly = (modelName) =>
+  api.get(`/dev-issues/model/${encodeURIComponent(modelName)}/monthly`)
+export const getModelDevIssuesWeekly = (modelName) =>
+  api.get(`/dev-issues/model/${encodeURIComponent(modelName)}/weekly`)
+export const searchDevIssue = (caseCode) =>
+  api.get('/dev-issues/search', { params: { case_code: caseCode } })
+export const updateDevIssuePending = (caseCode, isPending, memo) =>
+  api.post(`/dev-issues/${caseCode}/pending`, { is_pending: isPending, memo })
+export const uploadDevIssueAttachment = (caseCode, file) => {
+  const form = new FormData()
+  form.append('file', file)
+  return api.post(`/dev-issues/${caseCode}/attachment`, form)
+}
+export const deleteDevIssueAttachment = (caseCode, storedName) =>
+  api.delete(`/dev-issues/${caseCode}/attachment/${encodeURIComponent(storedName)}`)
+export const getDevIssueAttachmentUrl = (caseCode, storedName) =>
+  `/api/dev-issues/${caseCode}/attachment/${encodeURIComponent(storedName)}`
+export const resetDevIssues = () => api.post('/dev-issues/reset')

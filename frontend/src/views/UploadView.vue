@@ -94,6 +94,31 @@
         </div>
       </div>
 
+      <!-- 개발모델 이슈 +UT 업로드 -->
+      <div class="card upload-card">
+        <h2>🛠️ 개발모델 이슈 +UT 업로드</h2>
+        <p class="desc">개발모델 이슈 엑셀 파일을 업로드합니다. (Members issue와 동일 형식)</p>
+        <div class="drop-zone" @dragover.prevent @drop.prevent="handleDrop($event, 'devissue')"
+             :class="{ 'drag-over': dragging === 'devissue' }"
+             @dragenter="dragging='devissue'" @dragleave="dragging=null">
+          <input type="file" accept=".xlsx,.xls" @change="handleFile($event, 'devissue')" ref="devissueInput" class="hidden-input" />
+          <div class="drop-content" @click="$refs.devissueInput.click()">
+            <span class="drop-icon">📂</span>
+            <p>클릭하거나 파일을 드래그하세요</p>
+            <p class="sub-text">{{ devissueFile?.name || '파일 미선택' }}</p>
+          </div>
+        </div>
+        <button class="btn-upload" @click="upload('devissue')" :disabled="!devissueFile || devissueLoading">
+          {{ devissueLoading ? '업로드 중...' : '업로드' }}
+        </button>
+        <button class="btn-reset" @click="handleResetDevIssues" :disabled="devissueResetting">
+          {{ devissueResetting ? '초기화 중...' : '전체 데이터 초기화' }}
+        </button>
+        <div v-if="devissueResult" :class="['result', devissueResult.success ? 'success' : 'error']">
+          {{ devissueResult.message }}
+        </div>
+      </div>
+
       <!-- Q-data 업로드 -->
       <div class="card upload-card">
         <h2>📊 Q-data 업로드</h2>
@@ -116,6 +141,9 @@
         <button class="btn-upload" @click="uploadQdataWithPpm" :disabled="!qdataFile || qdataLoading">
           {{ qdataLoading ? '업로드 중...' : '업로드' }}
         </button>
+        <button class="btn-reset" @click="handleResetQData" :disabled="qdataResetting">
+          {{ qdataResetting ? '초기화 중...' : '전체 데이터 초기화' }}
+        </button>
         <div v-if="qdataResult" :class="['result', qdataResult.success ? 'success' : 'error']">
           {{ qdataResult.message }}
         </div>
@@ -126,15 +154,16 @@
 
 <script setup>
 import { ref } from 'vue'
-import { uploadVoc, uploadChipsetMapping, uploadAppKeywords, uploadQData, uploadLaunchDates } from '../api'
+import { uploadVoc, uploadChipsetMapping, uploadAppKeywords, uploadQData, uploadLaunchDates, uploadDevIssues, resetDevIssues, resetQData } from '../api'
 
 const dragging = ref(null)
 
 const vocFile = ref(null), vocLoading = ref(false), vocResult = ref(null)
 const chipsetFile = ref(null), chipsetLoading = ref(false), chipsetResult = ref(null)
 const appFile = ref(null), appLoading = ref(false), appResult = ref(null)
-const qdataFile = ref(null), qdataLoading = ref(false), qdataResult = ref(null), qdataPpm = ref('')
+const qdataFile = ref(null), qdataLoading = ref(false), qdataResult = ref(null), qdataPpm = ref(''), qdataResetting = ref(false)
 const launchFile = ref(null), launchLoading = ref(false), launchResult = ref(null)
+const devissueFile = ref(null), devissueLoading = ref(false), devissueResult = ref(null), devissueResetting = ref(false)
 
 function handleFile(e, type) {
   const file = e.target.files[0]
@@ -153,13 +182,15 @@ function setFile(type, file) {
   if (type === 'app') { appFile.value = file; appResult.value = null }
   if (type === 'qdata') { qdataFile.value = file; qdataResult.value = null }
   if (type === 'launch') { launchFile.value = file; launchResult.value = null }
+  if (type === 'devissue') { devissueFile.value = file; devissueResult.value = null }
 }
 
 async function upload(type) {
   const apis = { voc: [vocFile, vocLoading, vocResult, uploadVoc],
                  chipset: [chipsetFile, chipsetLoading, chipsetResult, uploadChipsetMapping],
                  app: [appFile, appLoading, appResult, uploadAppKeywords],
-                 launch: [launchFile, launchLoading, launchResult, uploadLaunchDates] }
+                 launch: [launchFile, launchLoading, launchResult, uploadLaunchDates],
+                 devissue: [devissueFile, devissueLoading, devissueResult, uploadDevIssues] }
   const [fileRef, loadingRef, resultRef, apiFn] = apis[type]
 
   loadingRef.value = true
@@ -171,6 +202,34 @@ async function upload(type) {
     resultRef.value = { success: false, message: e.response?.data?.detail || '업로드 실패' }
   } finally {
     loadingRef.value = false
+  }
+}
+
+async function handleResetDevIssues() {
+  if (!confirm('개발이슈 전체 데이터를 삭제합니다. 계속하시겠습니까?')) return
+  devissueResetting.value = true
+  devissueResult.value = null
+  try {
+    const res = await resetDevIssues()
+    devissueResult.value = { success: true, message: `초기화 완료: ${res.data.deleted_count}건 삭제됨` }
+  } catch (e) {
+    devissueResult.value = { success: false, message: '초기화 실패' }
+  } finally {
+    devissueResetting.value = false
+  }
+}
+
+async function handleResetQData() {
+  if (!confirm('Q-data 전체 데이터를 삭제합니다. 계속하시겠습니까?')) return
+  qdataResetting.value = true
+  qdataResult.value = null
+  try {
+    const res = await resetQData()
+    qdataResult.value = { success: true, message: `초기화 완료: ${res.data.deleted_count}건 삭제됨` }
+  } catch (e) {
+    qdataResult.value = { success: false, message: '초기화 실패' }
+  } finally {
+    qdataResetting.value = false
   }
 }
 
@@ -204,6 +263,9 @@ async function uploadQdataWithPpm() {
 .hidden-input { display: none; }
 .btn-upload { margin-top: 14px; width: 100%; padding: 10px; background: #1a237e; color: #fff; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; transition: opacity 0.2s; }
 .btn-upload:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-reset { margin-top: 8px; width: 100%; padding: 8px; background: #fff; color: #c62828; border: 1px solid #c62828; border-radius: 6px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s; }
+.btn-reset:hover { background: #fce4ec; }
+.btn-reset:disabled { opacity: 0.5; cursor: not-allowed; }
 .result { margin-top: 12px; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; white-space: pre-line; }
 .result.success { background: #e8f5e9; color: #2e7d32; }
 .result.error { background: #fce4ec; color: #b71c1c; }

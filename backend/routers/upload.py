@@ -1,10 +1,12 @@
 """업로드 라우터"""
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+import re
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from typing import Optional
-from datetime import datetime, date as date_type
+from datetime import datetime
 from database import get_collection
 from services.excel_service import read_excel_with_drm, read_qdata_excel_with_drm
-from services.voc_parser import process_voc_row, merge_similar_chipsets, convert_qdata_date
+from services.voc_parser import (process_voc_row, merge_similar_chipsets, convert_qdata_date,
+                                 extract_watch_model, extract_model_from_title, map_model_name)
 import pandas as pd
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
@@ -47,18 +49,27 @@ async def upload_internal_voc(file: UploadFile = File(...)):
         try:
             existing = await voc_col.find_one({"case_code": case_code})
             if existing:
+                # close 상태는 open/resolve로 되돌릴 수 없음
+                new_status = voc_data.get("status", "open")
+                if existing.get("status") == "close":
+                    new_status = "close"
                 await voc_col.update_one(
                     {"case_code": case_code},
                     {"$set": {
                         "model_name": voc_data["model_name"],
+                        "status": new_status,
                         "cause": voc_data["cause"],
                         "solution": voc_data["solution"],
+                        "resolve_option": voc_data.get("resolve_option"),
                         "uploaded_date": now_str,
                     }},
                 )
             else:
                 voc_data["case_code"] = case_code
                 voc_data["uploaded_date"] = now_str
+                voc_data.setdefault("is_pending", False)
+                voc_data.setdefault("pending_memo", "")
+                voc_data.setdefault("pending_attachments", [])
                 await voc_col.insert_one(voc_data)
             success_count += 1
         except Exception as e:
@@ -145,13 +156,55 @@ async def upload_qdata(file: UploadFile = File(...), ppm: Optional[float] = Form
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # J열 필터: 'GPS 수신 이상' 항목만 처리
+    unique_vals = df["j_category"].astype(str).unique().tolist()
+    print(f"[Q-data] J열 고유값 ({len(unique_vals)}개): {unique_vals[:20]}")
+    before_count = len(df)
+    df = df[df["j_category"].astype(str).str.contains("GPS 수신 이상", na=False)]
+    print(f"[Q-data] 필터 전: {before_count}행 → 필터 후: {len(df)}행")
+
     # 날짜 변환
     df["service_date"] = df["service_date"].apply(convert_qdata_date)
     df = df.dropna(subset=["service_date", "model_name"])
 
     col = get_collection("q_data")
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    today_str = date_type.today().strftime("%Y-%m-%d")
+    today = datetime.now().date()
+    now_str = today.strftime("%Y-%m-%d %H:%M:%S")
+
+    # PPM 저장: 모델 출시일 기준 개통일차 계산 후 ppm_data에 저장
+    if ppm is not None and not df.empty:
+        model_name = df["model_name"].dropna().mode()
+        model_name = model_name.iloc[0] if len(model_name) > 0 else None
+        if model_name:
+            launch_col = get_collection("launch_dates")
+            launch_doc = await launch_col.find_one({"model_name": model_name})
+            if not launch_doc and model_name.upper().startswith("SM-") and len(model_name) >= 7:
+                prefix = model_name[:7]
+                all_launch = await launch_col.find({}, {"model_name": 1, "launch_date": 1}).to_list(None)
+                for d in all_launch:
+                    if d.get("model_name", "")[:7] == prefix:
+                        launch_doc = d
+                        break
+            if launch_doc and launch_doc.get("launch_date"):
+                try:
+                    launch_date = datetime.strptime(launch_doc["launch_date"], "%Y-%m-%d").date()
+                    activation_day = (today - launch_date).days
+                    ppm_col = get_collection("ppm_data")
+                    await ppm_col.update_one(
+                        {"model_name": model_name, "activation_day": activation_day},
+                        {"$set": {
+                            "model_name": model_name,
+                            "activation_day": activation_day,
+                            "ppm": ppm,
+                            "upload_date": today.strftime("%Y-%m-%d"),
+                        }},
+                        upsert=True,
+                    )
+                    print(f"[Q-data] PPM 저장: {model_name} 개통 {activation_day}일차 = {ppm}")
+                except Exception as e:
+                    print(f"[Q-data] PPM 저장 실패: {e}")
+            else:
+                print(f"[Q-data] 출시일 없음: {model_name} → PPM 저장 건너뜀")
 
     success_count = duplicate_count = error_count = 0
 
@@ -216,6 +269,103 @@ async def upload_qdata(file: UploadFile = File(...), ppm: Optional[float] = Form
     }
 
 
+@router.post("/dev_issues")
+async def upload_dev_issues(file: UploadFile = File(...)):
+    if not file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="엑셀 파일만 업로드 가능합니다.")
+    try:
+        df = await read_excel_with_drm(file, header=2)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    EXCLUDE = ["members", "k zone", "rdm", "디버그분석"]
+    col = get_collection("dev_issues")
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    success_count = skip_count = error_count = 0
+
+    for _, row in df.iterrows():
+        try:
+            def safe(val):
+                return str(val) if pd.notna(val) else None
+
+            case_code = safe(row.iloc[0])
+            title = safe(row.iloc[7])
+            status_raw = safe(row.iloc[6])
+
+            if not case_code:
+                continue
+
+            title_lower = (title or "").lower()
+            if any(kw in title_lower for kw in EXCLUDE):
+                skip_count += 1
+                continue
+
+            issue_type = "UT" if title and "ut" in title_lower else "자체"
+
+            col_d = safe(row.iloc[3])  # D열: 모델명 직접 기재
+
+            watch = extract_watch_model(title)
+            if watch:
+                model_name = watch
+            else:
+                model_name = extract_model_from_title(title)
+                if not model_name and col_d:
+                    model_name = extract_watch_model(col_d) or extract_model_from_title(col_d) or col_d.strip()
+            model_name = map_model_name(model_name) if model_name else None
+
+            status_norm = (status_raw or "").strip().lower()
+            if status_norm.startswith("resolve"):
+                status_norm = "resolve"
+            elif status_norm not in ("open", "close"):
+                status_norm = "open"
+
+            created_date = None
+            if case_code and case_code.upper().startswith("P"):
+                dm = re.search(r"P(\d{6})", case_code, re.IGNORECASE)
+                if dm:
+                    try:
+                        created_date = datetime.strptime(dm.group(1), "%y%m%d").strftime("%Y-%m-%d")
+                    except Exception:
+                        pass
+
+            existing = await col.find_one({"case_code": case_code})
+            if existing:
+                # close 상태는 open/resolve로 되돌릴 수 없음
+                final_status = status_norm if existing.get("status") != "close" else "close"
+                update_fields = {
+                    "title": title,
+                    "model_name": model_name,
+                    "status": final_status,
+                    "issue_type": issue_type,
+                    "uploaded_date": now_str,
+                }
+                if created_date and not existing.get("created_date"):
+                    update_fields["created_date"] = created_date
+                await col.update_one({"case_code": case_code}, {"$set": update_fields})
+            else:
+                await col.insert_one({
+                    "case_code": case_code,
+                    "title": title,
+                    "model_name": model_name,
+                    "status": status_norm,
+                    "issue_type": issue_type,
+                    "created_date": created_date,
+                    "is_pending": False,
+                    "pending_memo": "",
+                    "pending_attachments": [],
+                    "uploaded_date": now_str,
+                })
+            success_count += 1
+        except Exception as e:
+            error_count += 1
+            print(f"Dev issue row error: {e}")
+
+    return {
+        "success": True,
+        "message": f"개발이슈 업로드 완료: {success_count}건 처리, {skip_count}건 제외, {error_count}건 오류",
+    }
+
+
 @router.post("/launch_dates")
 async def upload_launch_dates(file: UploadFile = File(...)):
     """출시일 업로드 (A열: 모델명, B열: 출시일)"""
@@ -235,23 +385,20 @@ async def upload_launch_dates(file: UploadFile = File(...)):
         if not model_name or model_name == "nan":
             continue
 
-        launch_date_raw = row.iloc[1]
+        launch_date_raw = row.iloc[1] if len(row) > 1 else None
 
-        # 날짜 파싱 (datetime 객체 또는 문자열)
-        if hasattr(launch_date_raw, "strftime"):
-            launch_date_str = launch_date_raw.strftime("%Y-%m-%d")
-        elif isinstance(launch_date_raw, str):
-            launch_date_str = None
-            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d"):
-                try:
-                    launch_date_str = datetime.strptime(launch_date_raw.strip(), fmt).strftime("%Y-%m-%d")
-                    break
-                except ValueError:
-                    continue
-            if not launch_date_str:
-                continue
-        else:
-            continue
+        # 날짜 파싱 (datetime 객체 또는 문자열, 공란이면 None으로 처리)
+        launch_date_str = None
+        if pd.notna(launch_date_raw) if launch_date_raw is not None else False:
+            if hasattr(launch_date_raw, "strftime"):
+                launch_date_str = launch_date_raw.strftime("%Y-%m-%d")
+            elif isinstance(launch_date_raw, str) and launch_date_raw.strip() not in ("", "nan"):
+                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d"):
+                    try:
+                        launch_date_str = datetime.strptime(launch_date_raw.strip(), fmt).strftime("%Y-%m-%d")
+                        break
+                    except ValueError:
+                        continue
 
         # C열 마케팅명 (선택)
         marketing_name = None
@@ -260,13 +407,19 @@ async def upload_launch_dates(file: UploadFile = File(...)):
             if pd.notna(raw) and str(raw).strip() not in ("", "nan"):
                 marketing_name = str(raw).strip()
 
+        # 출시일도 마케팅명도 없으면 건너뜀
+        if not launch_date_str and not marketing_name:
+            continue
+
+        update_fields = {"model_name": model_name}
+        if launch_date_str:
+            update_fields["launch_date"] = launch_date_str
+        if marketing_name is not None:
+            update_fields["marketing_name"] = marketing_name
+
         await col.update_one(
             {"model_name": model_name},
-            {"$set": {
-                "model_name": model_name,
-                "launch_date": launch_date_str,
-                "marketing_name": marketing_name,
-            }},
+            {"$set": update_fields},
             upsert=True,
         )
         success_count += 1

@@ -11,6 +11,7 @@ const routes = [
   { path: '/launch-compare', name: 'launch-compare', component: () => import('../views/LaunchCompareView.vue') },
   { path: '/statistics/month/:month', name: 'month-detail', component: () => import('../views/MonthDetailView.vue') },
   { path: '/statistics/model/:name', name: 'model-detail', component: () => import('../views/ModelDetailView.vue') },
+  { path: '/dev-issues', name: 'dev-issues', component: () => import('../views/DevIssuesView.vue') },
 ]
 
 export default createRouter({
