@@ -53,20 +53,16 @@ async def upload_internal_voc(file: UploadFile = File(...)):
                 new_status = voc_data.get("status", "open")
                 if existing.get("status") == "close":
                     new_status = "close"
-                update_fields = {
-                    "model_name": voc_data["model_name"],
-                    "status": new_status,
-                    "cause": voc_data["cause"],
-                    "solution": voc_data["solution"],
-                    "resolve_option": voc_data.get("resolve_option"),
-                    "uploaded_date": now_str,
-                }
-                # created_date가 null이었던 레코드에 날짜를 채워줌
-                if not existing.get("created_date") and voc_data.get("created_date"):
-                    update_fields["created_date"] = voc_data["created_date"]
                 await voc_col.update_one(
                     {"case_code": case_code},
-                    {"$set": update_fields},
+                    {"$set": {
+                        "model_name": voc_data["model_name"],
+                        "status": new_status,
+                        "cause": voc_data["cause"],
+                        "solution": voc_data["solution"],
+                        "resolve_option": voc_data.get("resolve_option"),
+                        "uploaded_date": now_str,
+                    }},
                 )
             else:
                 voc_data["case_code"] = case_code
