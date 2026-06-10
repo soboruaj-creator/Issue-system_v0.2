@@ -387,18 +387,38 @@ async def upload_launch_dates(file: UploadFile = File(...)):
 
         launch_date_raw = row.iloc[1] if len(row) > 1 else None
 
-        # 날짜 파싱 (datetime 객체 또는 문자열, 공란이면 None으로 처리)
+        # 날짜 파싱 (datetime 객체, 숫자형 Excel 시리얼, 문자열 모두 처리)
         launch_date_str = None
-        if pd.notna(launch_date_raw) if launch_date_raw is not None else False:
+        try:
+            is_valid = launch_date_raw is not None and pd.notna(launch_date_raw)
+        except (TypeError, ValueError):
+            is_valid = False
+        if is_valid:
             if hasattr(launch_date_raw, "strftime"):
+                # pd.Timestamp 또는 datetime 객체
                 launch_date_str = launch_date_raw.strftime("%Y-%m-%d")
+            elif isinstance(launch_date_raw, (int, float)):
+                # xlrd 엔진은 날짜를 Excel 시리얼 숫자(float)로 반환
+                try:
+                    ts = pd.Timestamp("1899-12-30") + pd.Timedelta(days=int(launch_date_raw))
+                    launch_date_str = ts.strftime("%Y-%m-%d")
+                except Exception:
+                    pass
             elif isinstance(launch_date_raw, str) and launch_date_raw.strip() not in ("", "nan"):
-                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d"):
+                raw_str = launch_date_raw.strip()
+                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y-%m-%d %H:%M:%S"):
                     try:
-                        launch_date_str = datetime.strptime(launch_date_raw.strip(), fmt).strftime("%Y-%m-%d")
+                        launch_date_str = datetime.strptime(raw_str, fmt).strftime("%Y-%m-%d")
                         break
                     except ValueError:
                         continue
+                if not launch_date_str:
+                    try:
+                        ts = pd.to_datetime(raw_str, dayfirst=False, errors="coerce")
+                        if pd.notna(ts):
+                            launch_date_str = ts.strftime("%Y-%m-%d")
+                    except Exception:
+                        pass
 
         # C열 마케팅명 (선택)
         marketing_name = None

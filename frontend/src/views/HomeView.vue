@@ -262,8 +262,14 @@ const trendChartData = computed(() => {
 
 const barOptions = {
   responsive: true,
+  maintainAspectRatio: false,
   plugins: { legend: { display: true, position: 'top' } },
-  scales: { x: { grid: { display: false } } },
+  scales: {
+    x: {
+      grid: { display: false },
+      ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 },
+    },
+  },
 }
 
 onMounted(async () => {
@@ -370,7 +376,7 @@ onMounted(async () => {
 .badge.up { background: #e8f5e9; color: #2e7d32; }
 .badge.warn { background: #fff3e0; color: #e65100; }
 
-.chart-wrap { height: 200px; }
+.chart-wrap { height: 260px; }
 .mt-12 { margin-top: 12px; }
 .mt-16 { margin-top: 16px; }
 
