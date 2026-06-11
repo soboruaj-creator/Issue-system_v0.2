@@ -10,6 +10,134 @@
     <div v-if="loading" class="loading">불러오는 중...</div>
 
     <template v-else>
+      <!-- 개발 이슈 현황 -->
+      <div class="card">
+        <div class="section-title">개발 이슈 현황</div>
+        <div v-if="devLoading" class="no-chart">로딩 중...</div>
+        <div v-else-if="devIssueError" class="no-chart">개발 이슈 데이터 없음</div>
+        <template v-else>
+          <div class="dev-type-cards">
+            <div class="dev-type-card dev-card">
+              <div class="dev-card-title">개발이슈 (자체)</div>
+              <div class="dev-stats-row">
+                <div class="dev-stat-item">
+                  <span class="dev-stat-label">Total</span>
+                  <span class="dev-stat-val">{{ statsDev.total }}</span>
+                </div>
+                <div class="dev-stat-item">
+                  <span class="dev-stat-label">Open</span>
+                  <span class="badge dev-open">{{ statsDev.open }}</span>
+                </div>
+                <div class="dev-stat-item">
+                  <span class="dev-stat-label">Resolve</span>
+                  <span class="badge dev-resolve">{{ statsDev.resolve }}</span>
+                </div>
+                <div class="dev-stat-item">
+                  <span class="dev-stat-label">Pending</span>
+                  <span class="badge dev-pending">{{ statsDev.pending }}</span>
+                </div>
+                <div class="dev-stat-item">
+                  <span class="dev-stat-label">Close</span>
+                  <span class="badge dev-close">{{ statsDev.close }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="dev-type-card ut-card">
+              <div class="dev-card-title">UT 이슈</div>
+              <div class="dev-stats-row">
+                <div class="dev-stat-item">
+                  <span class="dev-stat-label">Total</span>
+                  <span class="dev-stat-val">{{ statsUt.total }}</span>
+                </div>
+                <div class="dev-stat-item">
+                  <span class="dev-stat-label">Open</span>
+                  <span class="badge dev-open">{{ statsUt.open }}</span>
+                </div>
+                <div class="dev-stat-item">
+                  <span class="dev-stat-label">Resolve</span>
+                  <span class="badge dev-resolve">{{ statsUt.resolve }}</span>
+                </div>
+                <div class="dev-stat-item">
+                  <span class="dev-stat-label">Pending</span>
+                  <span class="badge dev-pending">{{ statsUt.pending }}</span>
+                </div>
+                <div class="dev-stat-item">
+                  <span class="dev-stat-label">Close</span>
+                  <span class="badge dev-close">{{ statsUt.close }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-if="!devIssues.length" class="no-chart">활성 이슈 없음</div>
+          <div v-else class="issue-list">
+            <div v-for="iss in devIssues" :key="iss.case_code"
+                 class="issue-item" :class="{ 'pending-row': iss.is_pending }">
+              <div class="issue-row">
+                <span class="badge" :class="'dev-status-' + iss.status">{{ iss.is_pending && iss.status === 'close' ? 'close/Pending' : iss.status }}</span>
+                <span class="issue-title">{{ iss.title }}</span>
+                <span class="issue-code">{{ iss.case_code }}</span>
+              </div>
+              <div v-if="iss.is_pending" class="pending-detail">
+                <span v-if="iss.pending_memo" class="pending-memo">📝 {{ iss.pending_memo }}</span>
+                <div v-if="iss.pending_attachments?.length" class="attach-list">
+                  <a v-for="att in iss.pending_attachments" :key="att.stored_name"
+                     :href="getDevIssueAttachmentUrl(iss.case_code, att.stored_name)"
+                     class="attach-link" download>
+                    📎 {{ att.filename }}
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Members issue 현황 -->
+      <div class="card">
+        <div class="section-title">Members issue 현황</div>
+        <div class="dev-type-cards">
+          <div class="dev-type-card voc-card">
+            <div class="dev-card-title">Members issue (멤버스)</div>
+            <div class="dev-stats-row">
+              <div class="dev-stat-item">
+                <span class="dev-stat-label">Total</span>
+                <span class="dev-stat-val">{{ vocStats.total }}</span>
+              </div>
+              <div class="dev-stat-item">
+                <span class="dev-stat-label">Open</span>
+                <span class="badge dev-open">{{ vocStats.open }}</span>
+              </div>
+              <div class="dev-stat-item">
+                <span class="dev-stat-label">Resolve</span>
+                <span class="badge dev-resolve">{{ vocStats.resolve }}</span>
+              </div>
+              <div class="dev-stat-item">
+                <span class="dev-stat-label">Pending</span>
+                <span class="badge dev-pending">{{ vocStats.pending }}</span>
+              </div>
+              <div class="dev-stat-item">
+                <span class="dev-stat-label">Close</span>
+                <span class="badge dev-close">{{ vocStats.close }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="!vocIssues.length" class="no-chart">활성 이슈 없음</div>
+        <div v-else class="issue-list">
+          <div v-for="iss in vocIssues" :key="iss.case_code"
+               class="issue-item" :class="{ 'pending-row': iss.is_pending }">
+            <div class="issue-row">
+              <span class="badge" :class="'voc-status-' + (iss.status || 'open')">{{ iss.is_pending && iss.status === 'close' ? 'close/Pending' : (iss.status || 'open') }}</span>
+              <span class="issue-title">{{ iss.summary || iss.title }}</span>
+              <span class="issue-code">{{ iss.case_code }}</span>
+            </div>
+            <div v-if="iss.is_pending && iss.pending_memo" class="pending-detail">
+              <span class="pending-memo">📝 {{ iss.pending_memo }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 추이 차트 (월별 or 주차별) -->
       <div class="card">
         <div class="section-title">
@@ -50,112 +178,6 @@
               </tr>
             </tbody>
           </table>
-        </div>
-      </div>
-
-      <!-- 개발 이슈 현황 -->
-      <div class="card">
-        <div class="section-title">개발 이슈 현황</div>
-        <div v-if="devLoading" class="no-chart">로딩 중...</div>
-        <div v-else-if="devIssueError" class="no-chart">개발 이슈 데이터 없음</div>
-        <template v-else>
-          <!-- 자체이슈 / UT이슈 카드 -->
-          <div class="dev-type-cards">
-            <!-- 개발이슈(자체) -->
-            <div class="dev-type-card dev-card">
-              <div class="dev-card-title">개발이슈 (자체)</div>
-              <div class="dev-stats-row">
-                <div class="dev-stat-item">
-                  <span class="dev-stat-label">Total</span>
-                  <span class="dev-stat-val">{{ statsDev.total }}</span>
-                </div>
-                <div class="dev-stat-item">
-                  <span class="dev-stat-label">Open</span>
-                  <span class="badge dev-open">{{ statsDev.open }}</span>
-                </div>
-                <div class="dev-stat-item">
-                  <span class="dev-stat-label">Resolve</span>
-                  <span class="badge dev-resolve">{{ statsDev.resolve }}</span>
-                </div>
-                <div class="dev-stat-item">
-                  <span class="dev-stat-label">Pending</span>
-                  <span class="badge dev-pending">{{ statsDev.pending }}</span>
-                </div>
-                <div class="dev-stat-item">
-                  <span class="dev-stat-label">Close</span>
-                  <span class="badge dev-close">{{ statsDev.close }}</span>
-                </div>
-              </div>
-            </div>
-            <!-- UT이슈 -->
-            <div class="dev-type-card ut-card">
-              <div class="dev-card-title">UT 이슈</div>
-              <div class="dev-stats-row">
-                <div class="dev-stat-item">
-                  <span class="dev-stat-label">Total</span>
-                  <span class="dev-stat-val">{{ statsUt.total }}</span>
-                </div>
-                <div class="dev-stat-item">
-                  <span class="dev-stat-label">Open</span>
-                  <span class="badge dev-open">{{ statsUt.open }}</span>
-                </div>
-                <div class="dev-stat-item">
-                  <span class="dev-stat-label">Resolve</span>
-                  <span class="badge dev-resolve">{{ statsUt.resolve }}</span>
-                </div>
-                <div class="dev-stat-item">
-                  <span class="dev-stat-label">Pending</span>
-                  <span class="badge dev-pending">{{ statsUt.pending }}</span>
-                </div>
-                <div class="dev-stat-item">
-                  <span class="dev-stat-label">Close</span>
-                  <span class="badge dev-close">{{ statsUt.close }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 이슈 리스트 (close 제외, pending+close 포함) -->
-          <div v-if="!devIssues.length" class="no-chart">활성 이슈 없음</div>
-          <div v-else class="issue-list">
-            <div v-for="iss in devIssues" :key="iss.case_code"
-                 class="issue-item" :class="{ 'pending-row': iss.is_pending }">
-              <div class="issue-row">
-                <span class="badge" :class="'dev-status-' + iss.status">{{ iss.is_pending && iss.status === 'close' ? 'close/Pending' : iss.status }}</span>
-                <span class="issue-title">{{ iss.title }}</span>
-                <span class="issue-code">{{ iss.case_code }}</span>
-              </div>
-              <div v-if="iss.is_pending" class="pending-detail">
-                <span v-if="iss.pending_memo" class="pending-memo">📝 {{ iss.pending_memo }}</span>
-                <div v-if="iss.pending_attachments?.length" class="attach-list">
-                  <a v-for="att in iss.pending_attachments" :key="att.stored_name"
-                     :href="getDevIssueAttachmentUrl(iss.case_code, att.stored_name)"
-                     class="attach-link" download>
-                    📎 {{ att.filename }}
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </template>
-      </div>
-
-      <!-- Members issue 현황 -->
-      <div class="card">
-        <div class="section-title">Members issue 현황</div>
-        <div v-if="!vocIssues.length" class="no-chart">활성 이슈 없음</div>
-        <div v-else class="issue-list">
-          <div v-for="iss in vocIssues" :key="iss.case_code"
-               class="issue-item" :class="{ 'pending-row': iss.is_pending }">
-            <div class="issue-row">
-              <span class="badge" :class="'voc-status-' + (iss.status || 'open')">{{ iss.is_pending && iss.status === 'close' ? 'close/Pending' : (iss.status || 'open') }}</span>
-              <span class="issue-title">{{ iss.title }}</span>
-              <span class="issue-code">{{ iss.case_code }}</span>
-            </div>
-            <div v-if="iss.is_pending && iss.pending_memo" class="pending-detail">
-              <span class="pending-memo">📝 {{ iss.pending_memo }}</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -232,6 +254,7 @@ const statsUt = ref({ total: 0, open: 0, resolve: 0, close: 0, pending: 0 })
 const devLoading = ref(true)
 const devIssueError = ref(false)
 const vocIssues = ref([])
+const vocStats = ref({ total: 0, open: 0, resolve: 0, pending: 0, close: 0 })
 
 const showWeekly = computed(() => vocMonthly.value.length === 0 && qdataMonthly.value.length === 0)
 
@@ -363,7 +386,10 @@ async function load() {
   }
   if (devMonthlyRes.status === 'fulfilled') devMonthly.value = devMonthlyRes.value.data || []
   if (devWeeklyRes.status === 'fulfilled') devWeekly.value = devWeeklyRes.value.data || []
-  if (vocRes.status === 'fulfilled') vocIssues.value = vocRes.value.data || []
+  if (vocRes.status === 'fulfilled') {
+    vocStats.value = vocRes.value.data.stats || vocStats.value
+    vocIssues.value = vocRes.value.data.issues || []
+  }
   loading.value = false
   devLoading.value = false
 }
@@ -479,6 +505,7 @@ onMounted(load)
 .dev-type-card { border-radius: 8px; padding: 14px 16px; }
 .dev-card { background: #f1f8e9; border-left: 4px solid #43a047; }
 .ut-card { background: #fce4ec; border-left: 4px solid #e53935; }
+.voc-card { background: #e8eaf6; border-left: 4px solid #3f51b5; }
 .dev-card-title { font-size: 0.88rem; font-weight: 700; margin-bottom: 10px; color: #333; }
 .dev-stats-row { display: flex; gap: 14px; flex-wrap: wrap; }
 .dev-stat-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }

@@ -120,7 +120,7 @@ async def update_voc_pending(case_code: str, body: dict):
 
 @router.get("/model-active/{model_name}")
 async def get_voc_model_active(model_name: str):
-    from routers.statistics import _get_marketing_map
+    from routers.statistics import _get_marketing_map, _extract_summary
     mmap = await _get_marketing_map()
     matching = {model_name}
     for raw, mkt in mmap.items():
@@ -141,12 +141,29 @@ async def get_voc_model_active(model_name: str):
     col = get_collection("internal_voc")
     docs = await col.find(
         query,
-        {"_id": 0, "case_code": 1, "title": 1, "status": 1, "is_pending": 1, "pending_memo": 1, "created_date": 1},
+        {"_id": 0, "case_code": 1, "title": 1, "status": 1, "is_pending": 1, "pending_memo": 1,
+         "created_date": 1, "problem": 1, "original_content": 1, "reproduction_path": 1},
     ).to_list(None)
+
+    total = len(docs)
+    open_count = sum(1 for d in docs if (d.get("status") or "open") == "open")
+    resolve_count = sum(1 for d in docs if (d.get("status") or "open") == "resolve")
+    close_count = sum(1 for d in docs if (d.get("status") or "open") == "close" and not d.get("is_pending"))
+    pending_count = sum(1 for d in docs if d.get("is_pending"))
 
     active = [d for d in docs if (d.get("status") or "open") != "close" or d.get("is_pending")]
     active.sort(key=lambda x: (-(1 if x.get("is_pending") else 0), x.get("status") or "open"))
-    return active
+
+    for d in active:
+        d["summary"] = _extract_summary(d.get("problem"), d.get("original_content"), d.get("reproduction_path"))
+        d.pop("problem", None)
+        d.pop("original_content", None)
+        d.pop("reproduction_path", None)
+
+    return {
+        "stats": {"total": total, "open": open_count, "resolve": resolve_count, "pending": pending_count, "close": close_count},
+        "issues": active,
+    }
 
 
 @router.get("/by-model/{model_name}")

@@ -33,7 +33,7 @@
           <tbody>
             <tr v-for="(item, idx) in modelStats" :key="item.model_name">
               <td>{{ idx + 1 }}</td>
-              <td>{{ item.model_name }}</td>
+              <td class="model-link" @click="openModelDetail(item.model_name)">{{ item.model_name }}</td>
               <td><span class="badge voc">{{ item.count }}</span></td>
               <td>{{ totalModel ? (item.count / totalModel * 100).toFixed(1) : 0 }}%</td>
             </tr>
@@ -61,50 +61,122 @@
     </div>
 
     <!-- 월별: 통합 차트 + 모델 선택 -->
-    <div v-if="activeTab === 'monthly' && !loading" class="card">
-      <div class="monthly-header">
-        <h2 class="section-title">월별 VOC / Q-data 추이</h2>
-        <div class="model-filter">
-          <label>모델 선택</label>
-          <select v-model="selectedModel" @change="loadStats">
-            <option value="">전체</option>
-            <option v-for="m in allModels" :key="m" :value="m">{{ m }}</option>
-          </select>
+    <div v-if="activeTab === 'monthly' && !loading">
+      <!-- 모델 선택 시: 개발이슈 현황 카드 -->
+      <template v-if="selectedModel">
+        <div class="card">
+          <div class="section-title">개발 이슈 현황</div>
+          <div class="dev-type-cards">
+            <div class="dev-type-card dev-card">
+              <div class="dev-card-title">개발이슈 (자체)</div>
+              <div class="dev-stats-row">
+                <div class="dev-stat-item"><span class="dev-stat-label">Total</span><span class="dev-stat-val">{{ selectedModelDevStats?.stats_dev?.total || 0 }}</span></div>
+                <div class="dev-stat-item"><span class="dev-stat-label">Open</span><span class="badge dev-open">{{ selectedModelDevStats?.stats_dev?.open || 0 }}</span></div>
+                <div class="dev-stat-item"><span class="dev-stat-label">Resolve</span><span class="badge dev-resolve">{{ selectedModelDevStats?.stats_dev?.resolve || 0 }}</span></div>
+                <div class="dev-stat-item"><span class="dev-stat-label">Pending</span><span class="badge dev-pending">{{ selectedModelDevStats?.stats_dev?.pending || 0 }}</span></div>
+                <div class="dev-stat-item"><span class="dev-stat-label">Close</span><span class="badge dev-close">{{ selectedModelDevStats?.stats_dev?.close || 0 }}</span></div>
+              </div>
+            </div>
+            <div class="dev-type-card ut-card">
+              <div class="dev-card-title">UT 이슈</div>
+              <div class="dev-stats-row">
+                <div class="dev-stat-item"><span class="dev-stat-label">Total</span><span class="dev-stat-val">{{ selectedModelDevStats?.stats_ut?.total || 0 }}</span></div>
+                <div class="dev-stat-item"><span class="dev-stat-label">Open</span><span class="badge dev-open">{{ selectedModelDevStats?.stats_ut?.open || 0 }}</span></div>
+                <div class="dev-stat-item"><span class="dev-stat-label">Resolve</span><span class="badge dev-resolve">{{ selectedModelDevStats?.stats_ut?.resolve || 0 }}</span></div>
+                <div class="dev-stat-item"><span class="dev-stat-label">Pending</span><span class="badge dev-pending">{{ selectedModelDevStats?.stats_ut?.pending || 0 }}</span></div>
+                <div class="dev-stat-item"><span class="dev-stat-label">Close</span><span class="badge dev-close">{{ selectedModelDevStats?.stats_ut?.close || 0 }}</span></div>
+              </div>
+            </div>
+          </div>
+          <div v-if="selectedModelDevIssues.length" class="issue-list">
+            <div v-for="iss in selectedModelDevIssues" :key="iss.case_code"
+                 class="issue-item" :class="{ 'pending-row': iss.is_pending }">
+              <div class="issue-row">
+                <span class="badge" :class="'dev-status-' + iss.status">{{ iss.is_pending && iss.status === 'close' ? 'close/Pending' : iss.status }}</span>
+                <span class="issue-title">{{ iss.title }}</span>
+                <span class="issue-code">{{ iss.case_code }}</span>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <!-- Members issue 현황 카드 -->
+        <div class="card">
+          <div class="section-title">Members issue 현황</div>
+          <div class="dev-type-cards">
+            <div class="dev-type-card voc-card">
+              <div class="dev-card-title">Members issue (멤버스)</div>
+              <div class="dev-stats-row">
+                <div class="dev-stat-item"><span class="dev-stat-label">Total</span><span class="dev-stat-val">{{ selectedModelVocStats?.total || 0 }}</span></div>
+                <div class="dev-stat-item"><span class="dev-stat-label">Open</span><span class="badge dev-open">{{ selectedModelVocStats?.open || 0 }}</span></div>
+                <div class="dev-stat-item"><span class="dev-stat-label">Resolve</span><span class="badge dev-resolve">{{ selectedModelVocStats?.resolve || 0 }}</span></div>
+                <div class="dev-stat-item"><span class="dev-stat-label">Pending</span><span class="badge dev-pending">{{ selectedModelVocStats?.pending || 0 }}</span></div>
+                <div class="dev-stat-item"><span class="dev-stat-label">Close</span><span class="badge dev-close">{{ selectedModelVocStats?.close || 0 }}</span></div>
+              </div>
+            </div>
+          </div>
+          <div v-if="selectedModelVocIssues.length" class="issue-list">
+            <div v-for="iss in selectedModelVocIssues" :key="iss.case_code"
+                 class="issue-item" :class="{ 'pending-row': iss.is_pending }">
+              <div class="issue-row">
+                <span class="badge" :class="'voc-status-' + (iss.status || 'open')">{{ iss.is_pending && iss.status === 'close' ? 'close/Pending' : (iss.status || 'open') }}</span>
+                <span class="issue-title">{{ iss.summary || iss.title }}</span>
+                <span class="issue-code">{{ iss.case_code }}</span>
+              </div>
+              <div v-if="iss.is_pending && iss.pending_memo" class="pending-detail">
+                <span class="pending-memo">📝 {{ iss.pending_memo }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- 월별 추이 차트 + 건수 테이블 -->
+      <div class="card">
+        <div class="monthly-header">
+          <h2 class="section-title">월별 VOC / Q-data 추이</h2>
+          <div class="model-filter">
+            <label>모델 선택</label>
+            <select v-model="selectedModel" @change="loadStats">
+              <option value="">전체</option>
+              <option v-for="m in allModels" :key="m" :value="m">{{ m }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <Line v-if="combinedMonthlyChartData" :data="combinedMonthlyChartData" :options="lineOptionsLegend" />
+        </div>
+        <table class="table mt-16">
+          <thead>
+            <tr>
+              <th>월</th>
+              <th><span class="legend-dot voc"></span> VOC 건수</th>
+              <th><span class="legend-dot qdata"></span> Q-data 건수</th>
+              <th>메모</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in [...combinedMonthlyData].reverse()" :key="item.month"
+                class="clickable-row" @click="goToMonthDetail(item.month)">
+              <td>{{ item.month }}</td>
+              <td><span class="badge voc">{{ item.voc_count }}</span></td>
+              <td><span class="badge qdata">{{ item.qdata_count }}</span></td>
+              <td @click.stop>
+                <span v-if="!editingMemo[item.month]" class="memo-text"
+                      @click="startEdit(item.month, item.memo)">
+                  {{ item.memo || '+ 메모 추가' }}
+                </span>
+                <span v-else class="memo-edit">
+                  <input v-model="memoInputs[item.month]"
+                         @keyup.enter="saveMemo('monthly', item.month)"
+                         @keyup.esc="cancelEdit(item.month)" placeholder="메모 입력" />
+                  <button @click="saveMemo('monthly', item.month)">저장</button>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div class="chart-wrap">
-        <Line v-if="combinedMonthlyChartData" :data="combinedMonthlyChartData" :options="lineOptionsLegend" />
-      </div>
-      <table class="table mt-16">
-        <thead>
-          <tr>
-            <th>월</th>
-            <th><span class="legend-dot voc"></span> VOC 건수</th>
-            <th><span class="legend-dot qdata"></span> Q-data 건수</th>
-            <th>메모</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in [...combinedMonthlyData].reverse()" :key="item.month"
-              class="clickable-row" @click="goToMonthDetail(item.month)">
-            <td>{{ item.month }}</td>
-            <td><span class="badge voc">{{ item.voc_count }}</span></td>
-            <td><span class="badge qdata">{{ item.qdata_count }}</span></td>
-            <td @click.stop>
-              <span v-if="!editingMemo[item.month]" class="memo-text"
-                    @click="startEdit(item.month, item.memo)">
-                {{ item.memo || '+ 메모 추가' }}
-              </span>
-              <span v-else class="memo-edit">
-                <input v-model="memoInputs[item.month]"
-                       @keyup.enter="saveMemo('monthly', item.month)"
-                       @keyup.esc="cancelEdit(item.month)" placeholder="메모 입력" />
-                <button @click="saveMemo('monthly', item.month)">저장</button>
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
     </div>
 
     <!-- 주별 -->
@@ -204,6 +276,9 @@ const router = useRouter()
 function goToMonthDetail(month) {
   window.open(`/statistics/month/${month}`, '_blank')
 }
+function openModelDetail(name) {
+  window.open('/statistics/model/' + encodeURIComponent(name), '_blank')
+}
 
 const tabs = [
   { key: 'model', label: '모델별' },
@@ -232,6 +307,10 @@ const qdataWeeklyStats = ref([])
 // 월별 모델 선택
 const selectedModel = ref('')
 const allModels = ref([])
+const selectedModelDevStats = ref(null)
+const selectedModelDevIssues = ref([])
+const selectedModelVocStats = ref(null)
+const selectedModelVocIssues = ref([])
 
 const editingMemo = ref({})
 const memoInputs = ref({})
@@ -377,10 +456,28 @@ async function loadStats() {
       if (!allModels.value.length) await loadAllModels()
 
       if (selectedModel.value) {
-        const res = await api.getEffectiveNameMonthly(selectedModel.value, params)
-        monthlyStats.value = res.data.voc_monthly || []
-        qdataMonthlyStats.value = res.data.qdata_monthly || []
+        const [statsRes, devRes, vocRes] = await Promise.allSettled([
+          api.getEffectiveNameMonthly(selectedModel.value, params),
+          api.getModelDevIssues(selectedModel.value),
+          api.getVocModelActive(selectedModel.value),
+        ])
+        if (statsRes.status === 'fulfilled') {
+          monthlyStats.value = statsRes.value.data.voc_monthly || []
+          qdataMonthlyStats.value = statsRes.value.data.qdata_monthly || []
+        }
+        if (devRes.status === 'fulfilled') {
+          selectedModelDevStats.value = devRes.value.data
+          selectedModelDevIssues.value = devRes.value.data.issues || []
+        }
+        if (vocRes.status === 'fulfilled') {
+          selectedModelVocStats.value = vocRes.value.data.stats || null
+          selectedModelVocIssues.value = vocRes.value.data.issues || []
+        }
       } else {
+        selectedModelDevStats.value = null
+        selectedModelDevIssues.value = []
+        selectedModelVocStats.value = null
+        selectedModelVocIssues.value = []
         const [vocRes, qdataRes] = await Promise.all([
           api.getMonthlyStats(params),
           api.getQDataMonthlyStats(params),
@@ -470,4 +567,41 @@ async function saveMemo(type, key) {
 .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
 .legend-dot.voc { background: #1a237e; }
 .legend-dot.qdata { background: #e64a19; }
+
+/* 모델 링크 */
+.model-link { cursor: pointer; color: #1a237e; }
+.model-link:hover { text-decoration: underline; }
+
+/* 개발/Members이슈 현황 카드 */
+.dev-type-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 4px; }
+@media (max-width: 600px) { .dev-type-cards { grid-template-columns: 1fr; } }
+.dev-type-card { border-radius: 8px; padding: 14px 16px; }
+.dev-card { background: #f1f8e9; border-left: 4px solid #43a047; }
+.ut-card { background: #fce4ec; border-left: 4px solid #e53935; }
+.voc-card { background: #e8eaf6; border-left: 4px solid #3f51b5; }
+.dev-card-title { font-size: 0.88rem; font-weight: 700; margin-bottom: 10px; color: #333; }
+.dev-stats-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.dev-stat-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.dev-stat-label { font-size: 0.75rem; color: #888; font-weight: 500; }
+.dev-stat-val { font-size: 1.1rem; font-weight: 700; color: #333; }
+.badge.dev-open { background: #e3f2fd; color: #1565c0; padding: 3px 10px; border-radius: 10px; font-weight: 700; font-size: 0.82rem; }
+.badge.dev-resolve { background: #e8f5e9; color: #2e7d32; padding: 3px 10px; border-radius: 10px; font-weight: 700; font-size: 0.82rem; }
+.badge.dev-pending { background: #fff3e0; color: #e65100; padding: 3px 10px; border-radius: 10px; font-weight: 700; font-size: 0.82rem; }
+.badge.dev-close { background: #f5f5f5; color: #757575; padding: 3px 10px; border-radius: 10px; font-weight: 700; font-size: 0.82rem; }
+.badge.dev-status-open { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
+.badge.dev-status-resolve { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
+.badge.dev-status-close { background: #f5f5f5; color: #757575; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
+.badge.voc-status-open { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
+.badge.voc-status-resolve { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
+.badge.voc-status-close { background: #f5f5f5; color: #757575; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.78rem; }
+
+/* 이슈 리스트 */
+.issue-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.issue-item { border-radius: 7px; background: #fafafa; border-left: 3px solid #e0e0e0; overflow: hidden; }
+.issue-item.pending-row { background: #fffde7; border-left-color: #ffa000; }
+.issue-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
+.issue-title { flex: 1; font-size: 0.85rem; color: #333; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.issue-code { font-size: 0.78rem; color: #999; white-space: nowrap; font-family: monospace; }
+.pending-detail { padding: 4px 12px 8px 12px; }
+.pending-memo { font-size: 0.82rem; color: #795548; }
 </style>
