@@ -122,20 +122,35 @@ async def read_excel_with_drm(file: UploadFile, header: int = 0) -> pd.DataFrame
 
 
 async def read_qdata_excel_with_drm(file: UploadFile) -> pd.DataFrame:
-    """Q-data 전용 엑셀 읽기 (9행부터, 특정 열만)"""
+    """Q-data 전용 엑셀 읽기 — Z열(모델명 'SM-') 위치로 헤더행 자동 감지"""
     usecols = [5, 9, 12, 15, 16, 19, 25, 29, 43, 50, 51]  # F,J,M,P,Q,T,Z,AD,AR,BE,BF
     content = await file.read()
     last_error = None
-
     engines = ["openpyxl", "xlrd", "pyxlsb", None]
 
+    def _detect_header_row(raw_df: pd.DataFrame) -> int:
+        """Z열(절대 col index 25)에서 'SM-'으로 시작하는 첫 데이터행 직전을 헤더행으로 반환"""
+        if raw_df.shape[1] <= 25:
+            return 8  # fallback
+        for i in range(min(30, len(raw_df))):
+            val = str(raw_df.iloc[i, 25]).strip()
+            if val.upper().startswith("SM-"):
+                detected = max(0, i - 1)
+                print(f"[Q-data] Z열 SM- 감지: 엑셀 {i + 1}행, 헤더행={detected + 1}")
+                return detected
+        print("[Q-data] Z열 SM- 미감지, 기본 헤더행=9 사용")
+        return 8  # fallback
+
+    suffix_map = {"openpyxl": ".xlsx", "xlrd": ".xls", "pyxlsb": ".xlsb", None: ""}
+
     for engine in engines:
+        eng_kwargs = {"engine": engine} if engine else {}
+
         # 메모리 방식
         try:
-            kwargs = {"header": 8, "usecols": usecols}
-            if engine:
-                kwargs["engine"] = engine
-            df = pd.read_excel(io.BytesIO(content), **kwargs)
+            raw_df = pd.read_excel(io.BytesIO(content), header=None, **eng_kwargs)
+            header_row = _detect_header_row(raw_df)
+            df = pd.read_excel(io.BytesIO(content), header=header_row, usecols=usecols, **eng_kwargs)
             if df is not None and not df.empty:
                 print(f"Q-data DRM 성공: {engine or '기본'} (메모리)")
                 return _rename_qdata_columns(df)
@@ -143,18 +158,14 @@ async def read_qdata_excel_with_drm(file: UploadFile) -> pd.DataFrame:
             last_error = str(e)
 
         # 임시 파일 방식
-        suffix_map = {"openpyxl": ".xlsx", "xlrd": ".xls", "pyxlsb": ".xlsb", None: ""}
         temp_path = None
         try:
-            with tempfile.NamedTemporaryFile(
-                delete=False, suffix=suffix_map.get(engine, "")
-            ) as tmp:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix_map.get(engine, "")) as tmp:
                 tmp.write(content)
                 temp_path = tmp.name
-            kwargs = {"header": 8, "usecols": usecols}
-            if engine:
-                kwargs["engine"] = engine
-            df = pd.read_excel(temp_path, **kwargs)
+            raw_df = pd.read_excel(temp_path, header=None, **eng_kwargs)
+            header_row = _detect_header_row(raw_df)
+            df = pd.read_excel(temp_path, header=header_row, usecols=usecols, **eng_kwargs)
             if df is not None and not df.empty:
                 print(f"Q-data DRM 성공: {engine or '기본'} (임시 파일)")
                 return _rename_qdata_columns(df)
