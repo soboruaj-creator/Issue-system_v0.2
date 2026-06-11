@@ -159,13 +159,18 @@ async def upload_qdata(file: UploadFile = File(...), ppm: Optional[float] = Form
     # J열 필터: 'GPS 수신 이상' 항목만 처리
     unique_vals = df["j_category"].astype(str).unique().tolist()
     print(f"[Q-data] J열 고유값 ({len(unique_vals)}개): {unique_vals[:20]}")
-    before_count = len(df)
+    excel_total = len(df)
     df = df[df["j_category"].astype(str).str.contains("GPS 수신 이상", na=False)]
-    print(f"[Q-data] 필터 전: {before_count}행 → 필터 후: {len(df)}행")
+    after_j_filter = len(df)
+    print(f"[Q-data] 필터 전: {excel_total}행 → GPS 수신 이상 필터 후: {after_j_filter}행")
 
     # 날짜 변환
     df["service_date"] = df["service_date"].apply(convert_qdata_date)
+    before_dropna = len(df)
     df = df.dropna(subset=["service_date", "model_name"])
+    after_dropna = len(df)
+    if before_dropna != after_dropna:
+        print(f"[Q-data] dropna 제거: {before_dropna - after_dropna}행 (서비스일자/모델명 누락)")
 
     col = get_collection("q_data")
     today = datetime.now().date()
@@ -263,6 +268,9 @@ async def upload_qdata(file: UploadFile = File(...), ppm: Optional[float] = Form
     return {
         "success": True,
         "message": f"Q-data 업로드 완료: {success_count}건 성공, {duplicate_count}건 중복, {error_count}건 실패" + ppm_message,
+        "excel_total": excel_total,
+        "after_j_filter": after_j_filter,
+        "after_dropna": after_dropna,
         "success_count": success_count,
         "duplicate_count": duplicate_count,
         "error_count": error_count,

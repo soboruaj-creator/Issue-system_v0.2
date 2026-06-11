@@ -1,6 +1,7 @@
 """Q-data 관리 라우터"""
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
+from datetime import datetime, timedelta
 from database import get_collection
 
 router = APIRouter(prefix="/api/qdata", tags=["qdata"])
@@ -103,3 +104,45 @@ async def reset_voc_data():
     voc_col = get_collection("internal_voc")
     result = await voc_col.delete_many({})
     return {"success": True, "deleted_count": result.deleted_count, "message": "VOC 데이터가 초기화되었습니다."}
+
+
+@router.get("/debug")
+async def debug_qdata():
+    """Q-data 컬렉션 현황 진단 엔드포인트"""
+    col = get_collection("q_data")
+    total = await col.count_documents({})
+
+    # 최근 30일 날짜 범위
+    today = datetime.now().date()
+    from_date = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+    recent_count = await col.count_documents({"service_date": {"$gte": from_date}})
+
+    # 날짜별 건수 (최근 30일)
+    daily_pipeline = [
+        {"$match": {"service_date": {"$gte": from_date}}},
+        {"$group": {"_id": "$service_date", "count": {"$sum": 1}}},
+        {"$sort": {"_id": -1}},
+    ]
+    daily = await col.aggregate(daily_pipeline).to_list(None)
+
+    # 모델별 건수 (최근 30일)
+    model_pipeline = [
+        {"$match": {"service_date": {"$gte": from_date}}},
+        {"$group": {"_id": "$model_name", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10},
+    ]
+    by_model = await col.aggregate(model_pipeline).to_list(None)
+
+    # 가장 최근 업로드된 5건 샘플
+    sample = await col.find(
+        {}, {"_id": 0, "service_date": 1, "model_name": 1, "serial_number": 1, "uploaded_date": 1}
+    ).sort("uploaded_date", -1).limit(5).to_list(None)
+
+    return {
+        "total": total,
+        "recent_30days": recent_count,
+        "daily_counts": [{"date": d["_id"], "count": d["count"]} for d in daily],
+        "by_model_recent": [{"model": m["_id"], "count": m["count"]} for m in by_model],
+        "latest_5_sample": sample,
+    }
